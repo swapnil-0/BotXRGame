@@ -17,6 +17,7 @@ public class RobotController : MonoBehaviour
 
     [Header("Input Actions")]
     public InputActionReference moveAction;
+    public InputActionReference triggerAction;
 
     [Header("Simulation")]
     public bool moveInSimulation = true;
@@ -37,15 +38,21 @@ public class RobotController : MonoBehaviour
         ros.RosPort = rosPort;
         ros.RegisterPublisher<TwistMsg>(topicName);
         InvokeRepeating("CheckConnection", 1f, 2f);
+
+        // Enable input actions
+        if (moveAction != null && moveAction.action != null)
+            moveAction.action.Enable();
+        if (triggerAction != null && triggerAction.action != null)
+            triggerAction.action.Enable();
     }
 
     void CheckConnection()
     {
-        try
+        if (ros != null && !ros.HasConnectionError)
         {
             connectionStatus = "ROS Connected | Publishing /cmd_vel";
         }
-        catch
+        else
         {
             connectionStatus = "Waiting for ROS...";
         }
@@ -53,25 +60,29 @@ public class RobotController : MonoBehaviour
 
     void Update()
     {
-        // Read thumbstick input
+        // Read controller input
         Vector2 input = Vector2.zero;
+        float triggerValue = 0f;
+
         if (moveAction != null && moveAction.action != null)
-        {
             input = moveAction.action.ReadValue<Vector2>();
-        }
+
+        if (triggerAction != null && triggerAction.action != null)
+            triggerValue = triggerAction.action.ReadValue<float>();
+
 
         // Map to Twist values
         linearX = input.y * linearSpeed;
         angularZ = -input.x * angularSpeed;
 
-        // Always move spaceship in simulation
+        // Move spaceship in simulation
         if (moveInSimulation)
         {
             transform.Translate(0, 0, linearX * Time.deltaTime);
             transform.Rotate(0, -angularZ * Time.deltaTime * Mathf.Rad2Deg, 0);
         }
 
-        // Publish at set rate
+        // Publish to ROS at set rate
         timeElapsed += Time.deltaTime;
         if (timeElapsed >= 1f / publishRate)
         {
@@ -96,5 +107,4 @@ public class RobotController : MonoBehaviour
     {
         CancelInvoke("CheckConnection");
     }
-
 }

@@ -29,6 +29,6 @@ public class CmdVelHUD : MonoBehaviour
         // Live values
         linearXText.text  = $"linear.x  : {robotController.linearX:F3}";
         angularZText.text = $"angular.z : {robotController.angularZ:F3}";
-        topicText.text    = "Topic: /cmd_vel";
+        topicText.text    = $"Topic: {robotController.topicName}";
     }
 }

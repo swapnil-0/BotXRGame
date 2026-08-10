@@ -51,6 +51,10 @@ public class ROSIPConfig : MonoBehaviour
         ros = ROSConnection.GetOrCreateInstance();
         ros.RosIPAddress = ip;
         ros.RosPort = robotController.rosPort;
+        ros.Disconnect();  
+        ros.Connect();    
+
+        robotController.connectionRequested = true;
 
         ipStatusText.text = "Connecting to " + ip + "...";
         ipStatusText.color = Color.yellow;
@@ -62,9 +66,11 @@ public class ROSIPConfig : MonoBehaviour
 
     public void OnSkipPressed()
     {
+        robotController.connectionStatus = "Simulation Mode - No ROS";
+        robotController.connectionRequested = false;
         // Skip ROS connection - simulation only mode
         ipInputPanel.SetActive(false);
         hudPanel.SetActive(true);
-        robotController.connectionStatus = "Simulation Mode - No ROS";
+        
     }
 }

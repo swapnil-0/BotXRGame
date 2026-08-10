@@ -9,7 +9,9 @@ public class RobotController : MonoBehaviour
     public string rosIP = "192.168.1.100";
     public int rosPort = 10000;
     public string topicName = "/cmd_vel";
-    public float publishRate = 10f;
+    // 30 Hz gives responsive teleop without meaningful bandwidth cost
+    // (48-byte Twist payload => ~2 KB/s).
+    public float publishRate = 30f;
 
     [Header("Movement Settings")]
     public float linearSpeed = 1.0f;
@@ -30,6 +32,7 @@ public class RobotController : MonoBehaviour
     [HideInInspector] public float linearX;
     [HideInInspector] public float angularZ;
     [HideInInspector] public string connectionStatus = "Waiting for ROS...";
+    [HideInInspector] public bool connectionRequested = false;
 
     void Start()
     {
@@ -48,14 +51,12 @@ public class RobotController : MonoBehaviour
 
     void CheckConnection()
     {
-        if (ros != null && !ros.HasConnectionError)
-        {
-            connectionStatus = "ROS Connected | Publishing /cmd_vel";
-        }
+        if (!connectionRequested)
+            connectionStatus = "Not connected";
+        else if (ros != null && !ros.HasConnectionError)
+            connectionStatus = "ROS Connected | Publishing " + topicName;
         else
-        {
-            connectionStatus = "Waiting for ROS...";
-        }
+            connectionStatus = "Connecting / Retrying...";
     }
 
     void Update()
@@ -66,6 +67,8 @@ public class RobotController : MonoBehaviour
 
         if (moveAction != null && moveAction.action != null)
             input = moveAction.action.ReadValue<Vector2>();
+        
+        if (input.magnitude < 0.15f) input = Vector2.zero;
 
         if (triggerAction != null && triggerAction.action != null)
             triggerValue = triggerAction.action.ReadValue<float>();
@@ -82,17 +85,26 @@ public class RobotController : MonoBehaviour
             transform.Rotate(0, -angularZ * Time.deltaTime * Mathf.Rad2Deg, 0);
         }
 
-        // Publish to ROS at set rate
+        // Publish to ROS at set rate.
+        // Subtract the interval rather than zeroing: resetting to 0 discards the
+        // overshoot every cycle, rounding the period up to a whole number of frames.
+        // At 72 Hz display and publishRate=10 that produced 8 frames * 13.89ms =
+        // 111ms = 9.0 Hz instead of 10 Hz (measured 2026-08-10).
+        float publishInterval = 1f / publishRate;
         timeElapsed += Time.deltaTime;
-        if (timeElapsed >= 1f / publishRate)
+        if (timeElapsed >= publishInterval)
         {
             PublishTwist();
-            timeElapsed = 0f;
+            timeElapsed -= publishInterval;
+            // Guard against unbounded catch-up after a frame hitch or app pause.
+            if (timeElapsed > publishInterval) timeElapsed = 0f;
         }
     }
 
     void PublishTwist()
     {
+        if (!connectionRequested) return;
+
         TwistMsg twist = new TwistMsg();
         twist.linear.x = linearX;
         twist.linear.y = 0;
@@ -105,6 +117,17 @@ public class RobotController : MonoBehaviour
 
     void OnDestroy()
     {
+        SendZero();
         CancelInvoke("CheckConnection");
     }
+
+    void SendZero()
+    {
+        if (!connectionRequested || ros == null) return;
+        TwistMsg stop = new TwistMsg();
+        ros.Publish(topicName, stop);
+    }
+
+    void OnApplicationPause(bool paused) { if (paused) SendZero(); }
+    void OnApplicationFocus(bool focused) { if (!focused) SendZero();} 
 }

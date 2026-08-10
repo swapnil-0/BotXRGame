@@ -20,8 +20,8 @@ for parts of the game.
 | Component | Details |
 |---|---|
 | XR Headset | Samsung Galaxy XR |
-| Robot Controller | RubikPi (Qualcomm) or equivalent Qualcomm board |
-| Robot | Ground bot with clamp/arm for object pickup |
+| Robot Controller | Qualcomm Dragonwing IQ-9075 (target); RubikPi 3 (current prototype) |
+| Robot | Hiwonder JetRover - 6-DOF arm, lidar, Hall-encoder DC motors, onboard STM32 |
 | Play Area | Physically marked rectangle (tape/mat) |
 | Game Objects | Small green cubes (physical), detected and replaced with virtual overlays |
 | Flags | Physical flags, seen as-is through passthrough |
@@ -35,8 +35,8 @@ for parts of the game.
 | Render Pipeline | URP (Universal Render Pipeline) |
 | XR Framework | OpenXR + Android XR package (com.unity.xr.androidxr-openxr 1.3.1) |
 | XR Input | Hand Tracking only (Hand Interaction Profile) |
-| ROS Version | ROS 2 Humble (Ubuntu 22.04) |
-| Unity to ROS Bridge | ROS TCP Connector 0.7.0 |
+| ROS Version | ROS 2 Jazzy (Ubuntu 24.04) |
+| Unity to ROS Bridge | ROS TCP Connector 0.7.0 + patched ros_tcp_endpoint (vendored) |
 | Graphics API | Vulkan |
 | Version Control | Git + GitHub (this repo) |
 
@@ -44,12 +44,23 @@ for parts of the game.
 
 ## Network Architecture
 
-[Samsung Galaxy XR]  <---- WiFi/TCP (port 10000) ---->  [RubikPi / Qualcomm Board]
-   Unity MR App                                              ROS 2 Humble
+[Samsung Galaxy XR]  <---- WiFi/TCP (port 10000) ---->  [RubikPi 3 / IQ-9075]
+   Unity MR App                                              ROS 2 Jazzy
 
-- Both devices must be on the same WiFi network
-- ROS TCP Endpoint runs on the RubikPi (default port 10000)
-- Unity ROSConnection component connects to RubikPi IP at runtime
+- Both devices must be on the same WiFi network and subnet
+- ROS TCP Endpoint runs on the board, bound to 0.0.0.0 (default port 10000)
+- Unity ROSConnection connects to the board IP, entered at runtime in-headset
+- Verified end to end 2026-08-10: 9.0 Hz, 3.1 ms jitter over Wi-Fi
+
+### Planned: custom transport
+The headset-to-board link will move off ROS-TCP-Connector to a BotXRGame-owned protocol
+with a local gateway publishing into ROS. This decouples the XR link from ROS and makes a
+later move to QUIC a transport swap rather than a rewrite.
+
+### Constraint: single ROS distro
+ROS 2 does not support traffic between distros. Every ROS machine on this project must run
+Jazzy. This matters because Hiwonder ships JetRover with Humble on its own SBC - that stack
+is not reusable as-is on the Qualcomm board.
 
 ---
 
@@ -102,11 +113,15 @@ BotXRGame/
 - [x] Unity MR project created and configured
 - [x] All Unity packages installed
 - [x] Android XR build profile active
-- [ ] ROS 2 Humble installed on RubikPi
-- [ ] ROS TCP Endpoint configured
-- [ ] Unity to ROS connection tested
+- [x] ROS 2 Jazzy installed on RubikPi 3 (Ubuntu 24.04, native)
+- [x] ROS TCP Endpoint built and patched (vendored - see PATCHES.md)
+- [x] Unity to ROS connection tested end to end (9.0 Hz, 3.1 ms jitter)
+- [x] link_monitor diagnostic node (`ros2_ws/src/xr_link_test`)
+- [ ] Custom XR-to-board transport (replaces ROS-TCP-Connector)
+- [ ] STM32 chassis driver on the Qualcomm board
+- [ ] Lidar publishing /scan and rendering in-headset
 - [ ] Green cube detection implemented
-- [ ] Virtual joystick implemented
+- [ ] Virtual joystick implemented (currently controller thumbstick)
 - [ ] Bot control via Unity working
 - [ ] Autonomous navigation working
 - [ ] Full game loop implemented

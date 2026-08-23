@@ -26,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'link_monitor = xr_link_test.link_monitor:main',
+            'bot_sim = xr_link_test.bot_sim:main',
         ],
     },
 )

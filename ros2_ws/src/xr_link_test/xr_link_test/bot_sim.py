@@ -129,6 +129,16 @@ class BotSim(Node):
         p("base_frame", "base_link")
         p("laser_frame", "laser")
         p("detect_range", 3.0)          # cups closer than this are "detected"
+        # --- arm ---------------------------------------------------------
+        # The JetRover arm reaches roughly 0.3-0.4 m from the base. Swinging
+        # while driving smears the hit and looks bad, so the wheels are locked
+        # for the duration of a swing.
+        p("arm_reach", 0.35)            # metres from base_link
+        p("arm_arc_deg", 70.0)          # swept width, centred on the aim yaw
+        p("arm_raise_time", 0.5)        # STOWED -> READY
+        p("arm_swing_time", 0.6)        # READY -> impact
+        p("arm_return_time", 0.5)       # impact -> STOWED
+        p("arm_locks_wheels", True)
 
         g = lambda k: self.get_parameter(k).value
         self.rate = float(g("rate"))
@@ -145,6 +155,12 @@ class BotSim(Node):
         self.base_frame = g("base_frame")
         self.laser_frame = g("laser_frame")
         self.detect_range = float(g("detect_range"))
+        self.arm_reach = float(g("arm_reach"))
+        self.arm_arc = math.radians(float(g("arm_arc_deg"))) / 2.0
+        self.arm_raise_time = float(g("arm_raise_time"))
+        self.arm_swing_time = float(g("arm_swing_time"))
+        self.arm_return_time = float(g("arm_return_time"))
+        self.arm_locks_wheels = bool(g("arm_locks_wheels"))
 
         half = math.radians(float(g("occluded_deg"))) / 2.0
         self.occ_centre = math.radians(float(g("occluded_centre_deg")))
@@ -170,6 +186,12 @@ class BotSim(Node):
         self.state = "IDLE"
         self._last_step = time.monotonic()
 
+        # Arm state machine: STOWED -> READY -> SWINGING -> (impact) -> STOWED
+        self.arm_state = "STOWED"
+        self.arm_t = 0.0                # seconds remaining in the current phase
+        self.arm_yaw = 0.0              # aim, relative to the robot's heading
+        self.knocked = set()            # indices of cups already knocked over
+
         qos = QoSProfile(history=QoSHistoryPolicy.KEEP_LAST, depth=10,
                          reliability=QoSReliabilityPolicy.RELIABLE)
 
@@ -179,9 +201,12 @@ class BotSim(Node):
         self.pub_objs = self.create_publisher(PoseArray, "/detected_objects", qos)
         self.pub_types = self.create_publisher(String, "/detected_object_types", qos)
         self.pub_state = self.create_publisher(String, "/bot_state", qos)
+        self.pub_arm = self.create_publisher(String, "/arm_state", qos)
+        self.pub_score = self.create_publisher(String, "/score_event", qos)
 
         self.create_subscription(Twist, "/cmd_vel", self._on_cmd, qos)
         self.create_subscription(PoseStamped, "/goal_pose", self._on_goal, qos)
+        self.create_subscription(String, "/arm_command", self._on_arm, qos)
 
         self.tf_bc = TransformBroadcaster(self) if (HAVE_TF2 and self.publish_tf) else None
 
@@ -211,6 +236,46 @@ class BotSim(Node):
         self.get_logger().info("goal: (%.2f, %.2f)" % self.goal)
         self._publish_plan()
 
+    def _on_arm(self, msg):
+        """
+        {"action": "SWING", "yaw": 0.35}  - yaw is optional, radians, relative
+                                           to the robot heading (0 = straight
+                                           ahead). Tier-1 drivers ignore it.
+        {"action": "STOW"}               - abort and return to STOWED.
+        """
+        try:
+            cmd = json.loads(msg.data)
+            if not isinstance(cmd, dict):
+                raise ValueError("not an object")
+        except (ValueError, TypeError) as exc:
+            self.get_logger().warn("bad /arm_command %r: %s" % (msg.data, exc))
+            return
+
+        action = str(cmd.get("action", "")).upper()
+
+        if action == "STOW":
+            self.arm_state = "STOWED"
+            self.arm_t = 0.0
+            return
+
+        if action != "SWING":
+            self.get_logger().warn("unknown arm action %r" % action)
+            return
+
+        # Ignore a new swing while one is in progress, rather than restarting
+        # it - a real arm cannot teleport back to READY mid-stroke.
+        if self.arm_state != "STOWED":
+            return
+
+        try:
+            self.arm_yaw = float(cmd.get("yaw", 0.0))
+        except (TypeError, ValueError):
+            self.arm_yaw = 0.0
+
+        self.arm_state = "READY"
+        self.arm_t = self.arm_raise_time
+        self.get_logger().info("arm: SWING at yaw=%+.2f rad" % self.arm_yaw)
+
     # ------------------------------------------------------------ physics
 
     def _step(self):
@@ -220,7 +285,13 @@ class BotSim(Node):
         if dt <= 0.0 or dt > 0.5:             # ignore hitches and resumes
             return
 
-        if self.goal is not None:
+        self._step_arm(dt)
+
+        if self.arm_locks_wheels and self.arm_state != "STOWED":
+            # Hold still through the whole swing so the hit lands where the
+            # player aimed it.
+            self.vx = self.wz = 0.0
+        elif self.goal is not None:
             self._drive_to_goal()
         else:
             stale = (self.last_cmd is None) or (now - self.last_cmd > self.cmd_timeout)
@@ -238,6 +309,65 @@ class BotSim(Node):
 
         self._publish_odom()
         self._publish_tf()
+
+    # ---------------------------------------------------------------- arm
+
+    def _step_arm(self, dt):
+        """Advance the arm state machine. Impact resolves at end of SWINGING."""
+        if self.arm_state == "STOWED":
+            return
+
+        self.arm_t -= dt
+        if self.arm_t > 0.0:
+            return
+
+        if self.arm_state == "READY":
+            self.arm_state = "SWINGING"
+            self.arm_t = self.arm_swing_time
+        elif self.arm_state == "SWINGING":
+            self._resolve_hit()                  # the moment of impact
+            self.arm_state = "RETURNING"
+            self.arm_t = self.arm_return_time
+        elif self.arm_state == "RETURNING":
+            self.arm_state = "STOWED"
+            self.arm_t = 0.0
+
+        s = String()
+        s.data = self.arm_state
+        self.pub_arm.publish(s)
+
+    def _resolve_hit(self):
+        """Knock over any standing cup inside the swept arc and within reach."""
+        aim = wrap(self.yaw + self.arm_yaw)
+        hits = 0
+
+        for i, (cx, cy, kind) in enumerate(self.cups):
+            if i in self.knocked:
+                continue
+            dx, dy = cx - self.x, cy - self.y
+            dist = math.hypot(dx, dy)
+            if dist > self.arm_reach:
+                continue
+            if abs(wrap(math.atan2(dy, dx) - aim)) > self.arm_arc:
+                continue
+
+            self.knocked.add(i)
+            hits += 1
+            event = "STAR_COLLECTED" if kind == "star" else "PENALTY_HIT"
+            msg = String()
+            msg.data = json.dumps({
+                "event": event, "kind": kind, "index": i,
+                "x": round(cx, 3), "y": round(cy, 3),
+            })
+            self.pub_score.publish(msg)
+            self.get_logger().info("arm hit %s at (%.2f, %.2f) -> %s"
+                                   % (kind, cx, cy, event))
+
+        if hits == 0:
+            msg = String()
+            msg.data = json.dumps({"event": "SWING_MISSED"})
+            self.pub_score.publish(msg)
+            self.get_logger().info("arm swung and missed")
 
     def _drive_to_goal(self):
         gx, gy = self.goal
@@ -354,7 +484,9 @@ class BotSim(Node):
         arr.header.stamp = self._stamp()
         arr.header.frame_id = self.odom_frame
         kinds = []
-        for (cx, cy, kind) in self.cups:
+        for i, (cx, cy, kind) in enumerate(self.cups):
+            if i in self.knocked:
+                continue                              # already knocked over
             if math.hypot(cx - self.x, cy - self.y) > self.detect_range:
                 continue                              # out of camera range
             pose = Pose()

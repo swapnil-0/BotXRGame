@@ -31,10 +31,16 @@ public class ArenaRun : MonoBehaviour
     // a small room behaves identically on the full-size field. A fixed 0.10 m/s
     // gives a 9 s crossing at 3 ft but 24 s at 8 ft - the same numbers produce
     // completely different games.
-    [Tooltip("How long a clean, undisturbed crossing should take. Steering " +
-             "around the tornado adds roughly 10-20% on top. Ship speed is " +
-             "computed from this and the arena size.")]
-    public float targetCrossingSeconds = 9f;
+    [Tooltip("Clean, undisturbed crossing time. Ship speed is derived from this " +
+             "and the arena size, so a course tuned in a small room behaves the " +
+             "same on a full-size field. 6 s across 3 ft gives about 0.15 m/s.")]
+    public float targetCrossingSeconds = 6f;
+
+    [Header("Debug")]
+    [Tooltip("Show live tornado numbers on the HUD. Turn off for demos.")]
+    public bool showTelemetry = true;
+    [Tooltip("Found automatically if left empty.")]
+    public Tornado tornado;
     [Tooltip("Uncheck to drive the ship at whatever speed GhostBot is set to.")]
     public bool overrideShipSpeed = true;
 
@@ -151,7 +157,26 @@ public class ArenaRun : MonoBehaviour
             return;
         }
 
-        SetHud(string.Format("{0:F1}s   {1:F2} m to go", ElapsedSeconds, remaining));
+        if (showTelemetry)
+        {
+            // Tuning force by feel through a six-minute build cycle is guesswork.
+            // These are the numbers that actually decide whether the vortex can
+            // out-muscle the ship.
+            if (tornado == null) tornado = FindAnyObjectByType<Tornado>();
+
+            string t = tornado == null
+                ? "no tornado"
+                : string.Format("d {0:F2}m  pull {1:F2}  ship {2:F2}  x{3:F1}  str {4:F2}",
+                    tornado.LastDistance, tornado.LastPull, tornado.LastShipSpeed,
+                    tornado.LastShipSpeed > 0.001f ? tornado.LastPull / tornado.LastShipSpeed : 0f,
+                    tornado.Strength);
+
+            SetHud(string.Format("{0:F1}s  {1:F2}m to go\n{2}", ElapsedSeconds, remaining, t));
+        }
+        else
+        {
+            SetHud(string.Format("{0:F1}s   {1:F2} m to go", ElapsedSeconds, remaining));
+        }
     }
 
     private void Finish()

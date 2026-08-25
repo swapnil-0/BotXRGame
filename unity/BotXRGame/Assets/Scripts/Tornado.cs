@@ -26,7 +26,22 @@ public class Tornado : MonoBehaviour
     [Tooltip("Left empty, the first GhostBot in the scene is found automatically.")]
     public GhostBot bot;
 
-    [Header("Force - expressed as a multiple of ship speed")]
+    [Header("Force - absolute")]
+    // Originally these were multiples of ship speed. That was a mistake: a
+    // faster ship got a proportionally stronger vortex, so the player's
+    // authority never changed and the tornado could never overwhelm them no
+    // matter how high the multiplier went. Absolute metres per second lets the
+    // vortex genuinely out-muscle the ship near the centre.
+    [Tooltip("Inward pull at dead centre, metres per second. This should be " +
+             "several times the ship's speed or the core is not a threat.")]
+    public float suckMetersPerSecond = 0.6f;
+    [Tooltip("Tangential push at dead centre, metres per second. Provides the " +
+             "sense of rotation; keep below suck or the ship just orbits.")]
+    public float swirlMetersPerSecond = 0.3f;
+
+    [Header("Force - legacy, relative to ship speed")]
+    [Tooltip("Use the multiples below instead of the absolute values above.")]
+    public bool useSpeedMultiples = false;
     // Absolute m/s values do not transfer between ship speeds. At 0.2 m/s a
     // 0.85 m/s swirl is a fun shove; at 0.10 m/s the same number is eight times
     // the player's authority and most starts become unwinnable. Scaling to ship
@@ -45,11 +60,10 @@ public class Tornado : MonoBehaviour
     [Tooltip("No effect beyond this radius. Set from arena size by ArenaPlacer.")]
     public float influenceRadius = 0.41f;
     [Range(0.2f, 4f)]
-    [Tooltip("Shape of the falloff. 1 is linear; 2 is quadratic - gentle at " +
-             "the rim and rising steeply toward the centre. With suck 2.5x and " +
-             "exponent 2, the pull matches ship speed at about 37% of the " +
-             "radius and exceeds it inside that, so the core cannot be escaped.")]
-    public float falloffExponent = 2f;
+    [Tooltip("Shape of the falloff. 1 is linear; higher is gentler at the rim " +
+             "and steeper toward the centre. At 1.5 with the default forces, " +
+             "the pull overtakes ship speed at about 60% of the radius.")]
+    public float falloffExponent = 1.5f;
 
     [Header("Capture")]
     // A purely radial force cannot stop a ship driving straight through the
@@ -91,6 +105,14 @@ public class Tornado : MonoBehaviour
 
     /// <summary>Current strength, 0 to 1. Drives audio, visuals and HUD.</summary>
     public float Strength { get; private set; }
+
+    // --- telemetry, read by the HUD ------------------------------------
+    /// <summary>Distance from the ship to the centre, metres. Infinity if out of range.</summary>
+    public float LastDistance { get; private set; } = float.PositiveInfinity;
+    /// <summary>Inward pull applied on the last frame, m/s.</summary>
+    public float LastPull { get; private set; }
+    /// <summary>Ship speed as the tornado sees it, m/s.</summary>
+    public float LastShipSpeed { get; private set; }
 
     void Start()
     {
@@ -137,13 +159,25 @@ public class Tornado : MonoBehaviour
         Vector3 inward = -delta / d;
         Vector3 tangent = Vector3.Cross(Vector3.up, inward) * (clockwise ? 1f : -1f);
 
-        // Scale to whatever the ship is currently capable of, so retuning the
-        // ship does not silently make the course unwinnable.
-        float shipSpeed = (bot.linearSpeed > 0.01f) ? bot.linearSpeed : assumedShipSpeed;
-        float swirl = swirlSpeedMultiple * shipSpeed;
-        float suck = suckSpeedMultiple * shipSpeed;
+        float suck, swirl;
+        if (useSpeedMultiples)
+        {
+            float shipSpeed = (bot.linearSpeed > 0.01f) ? bot.linearSpeed : assumedShipSpeed;
+            suck = suckSpeedMultiple * shipSpeed;
+            swirl = swirlSpeedMultiple * shipSpeed;
+        }
+        else
+        {
+            suck = suckMetersPerSecond;
+            swirl = swirlMetersPerSecond;
+        }
 
         bot.AddExternalVelocity(inward * (suck * s) + tangent * (swirl * s));
+
+        // Telemetry, so tuning is measured rather than guessed at.
+        LastDistance = d;
+        LastPull = suck * s;
+        LastShipSpeed = bot.linearSpeed;
     }
 
     private void UpdateVisuals()

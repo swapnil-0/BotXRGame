@@ -36,6 +36,20 @@ public class ArenaRun : MonoBehaviour
              "same on a full-size field. 6 s across 3 ft gives about 0.15 m/s.")]
     public float targetCrossingSeconds = 6f;
 
+    [Header("Finish")]
+    [Tooltip("Clamp margin as a fraction of arena size. The finish sits on the " +
+             "far edge, so a tight clamp fights the player at the goal.")]
+    [Range(0f, 0.5f)]
+    public float clampMargin = 0.15f;
+    [Tooltip("Optional burst played at the finish line on arrival.")]
+    public ParticleSystem finishEffect;
+    [Tooltip("Optional. Pulsed and recoloured on arrival.")]
+    public Transform finishMarkerVisual;
+    [Tooltip("Stop the vortex once the run is over.")]
+    public bool calmTornadoOnFinish = true;
+    public AudioSource audioSource;
+    public AudioClip finishClip;
+
     [Header("Debug")]
     [Tooltip("Show live tornado numbers on the HUD. Turn off for demos.")]
     public bool showTelemetry = true;
@@ -126,7 +140,13 @@ public class ArenaRun : MonoBehaviour
                 playAreaAnchor.rotation = Quaternion.LookRotation(forward, Vector3.up);
 
                 ship.playAreaCenter = playAreaAnchor;
-                ship.playAreaSize = new Vector2(size, size);
+
+                // The finish sits exactly ON the far edge of the arena, so an
+                // exact clamp fights the player right where they are trying to
+                // arrive - it reads as being shoved away from the goal. Give
+                // the clamp some margin so the boundary is never the target.
+                float clamped = size * (1f + clampMargin);
+                ship.playAreaSize = new Vector2(clamped, clamped);
             }
         }
 
@@ -201,9 +221,55 @@ public class ArenaRun : MonoBehaviour
         bool best = BestSeconds < 0f || ElapsedSeconds < BestSeconds;
         if (best) BestSeconds = ElapsedSeconds;
 
-        SetHud(string.Format("Finished in {0:F2}s{1}",
-                             ElapsedSeconds, best ? "   NEW BEST" : ""));
+        // Calm the vortex. Leaving it spinning next to a "finished" message
+        // reads as though the run is still going.
+        if (calmTornadoOnFinish)
+        {
+            if (tornado == null) tornado = FindAnyObjectByType<Tornado>();
+            if (tornado != null) tornado.enabled = false;
+        }
+
+        if (ship != null) ship.acceptExternalForces = false;
+
+        if (finishEffect != null) finishEffect.Play();
+        if (audioSource != null && finishClip != null) audioSource.PlayOneShot(finishClip);
+
+        string penalty = CaptureCount > 0
+            ? string.Format("\nswallowed {0}x  (+{1:F0}s)",
+                            CaptureCount, CaptureCount * capturePenaltySeconds)
+            : "";
+
+        SetHud(string.Format("FINISHED  {0:F2}s{1}{2}",
+                             ElapsedSeconds, best ? "   NEW BEST" : "", penalty));
+
+        if (finishMarkerVisual != null) StartCoroutine(CelebrateMarker());
+
         OnFinished?.Invoke(ElapsedSeconds);
+    }
+
+    /// <summary>Brief pulse on the finish marker so arrival is unmistakable.</summary>
+    private System.Collections.IEnumerator CelebrateMarker()
+    {
+        Vector3 baseScale = finishMarkerVisual.localScale;
+        var renderers = finishMarkerVisual.GetComponentsInChildren<Renderer>();
+
+        for (float t = 0f; t < 2.5f; t += Time.deltaTime)
+        {
+            float pulse = 1f + 0.5f * Mathf.Abs(Mathf.Sin(t * 5f));
+            finishMarkerVisual.localScale =
+                new Vector3(baseScale.x * pulse, baseScale.y, baseScale.z * pulse);
+
+            // Flash between green and white rather than fading out, so it stays
+            // readable against a bright passthrough background.
+            Color c = Color.Lerp(new Color(0.2f, 1f, 0.4f, 0.6f),
+                                 Color.white, Mathf.Abs(Mathf.Sin(t * 5f)));
+            foreach (var r in renderers)
+                if (r.material != null) r.material.color = c;
+
+            yield return null;
+        }
+
+        finishMarkerVisual.localScale = baseScale;
     }
 
     /// <summary>Wire to a button to run the same course again.</summary>

@@ -261,7 +261,7 @@ public static class BotXRGameSetup
     {
         var problems = new List<string>();
 
-        var placer = Object.FindObjectOfType<ArenaPlacer>();
+        var placer = Object.FindFirstObjectByType<ArenaPlacer>();
         if (placer == null) problems.Add("No ArenaPlacer in the scene - run Build Tornado MVP Scene.");
         else
         {
@@ -273,19 +273,19 @@ public static class BotXRGameSetup
             RequireRef(placer, "placeAction", problems);
         }
 
-        var run = Object.FindObjectOfType<ArenaRun>();
+        var run = Object.FindFirstObjectByType<ArenaRun>();
         if (run != null) RequireRef(run, "ship", problems);
 
-        var floor = Object.FindObjectOfType<FloorSetup>();
+        var floor = Object.FindFirstObjectByType<FloorSetup>();
         if (floor == null) problems.Add("No FloorSetup - plane detection will never start.");
         else RequireRef(floor, "planeManager", problems);
 
-        var planeManager = Object.FindObjectOfType<ARPlaneManager>();
+        var planeManager = Object.FindFirstObjectByType<ARPlaneManager>();
         if (planeManager != null && planeManager.enabled)
             problems.Add("ARPlaneManager is ENABLED. It must start disabled; FloorSetup " +
                          "enables it after the permission is granted.");
 
-        var ghost = Object.FindObjectOfType<GhostBot>();
+        var ghost = Object.FindFirstObjectByType<GhostBot>();
         if (ghost == null) problems.Add("No GhostBot in the scene.");
         else
         {
@@ -358,12 +358,12 @@ public static class BotXRGameSetup
 
     private static GameObject FindXrOrigin()
     {
-        var rc = Object.FindObjectOfType<ARRaycastManager>();
+        var rc = Object.FindFirstObjectByType<ARRaycastManager>();
         if (rc != null) return rc.gameObject;
-        var pm = Object.FindObjectOfType<ARPlaneManager>();
+        var pm = Object.FindFirstObjectByType<ARPlaneManager>();
         if (pm != null) return pm.gameObject;
 
-        foreach (var t in Object.FindObjectsOfType<Transform>())
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectSortMode.None))
             if (t.name.Contains("XR Origin")) return t.gameObject;
         return null;
     }
@@ -373,12 +373,12 @@ public static class BotXRGameSetup
         // Prefer an explicit ray interactor; fall back to anything named like a
         // right-hand controller. Nothing here is guaranteed, hence the fallback
         // to a manual to-do item.
-        foreach (var t in Object.FindObjectsOfType<Transform>())
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectSortMode.None))
         {
             string n = t.name.ToLowerInvariant();
             if (n.Contains("ray interactor")) return t;
         }
-        foreach (var t in Object.FindObjectsOfType<Transform>())
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectSortMode.None))
         {
             string n = t.name.ToLowerInvariant();
             if (n.Contains("right") && (n.Contains("controller") || n.Contains("hand"))) return t;

@@ -58,7 +58,7 @@ public class Target : MonoBehaviour
     void Start()
     {
         // Only used for the chassis-contact rule; the arm finds targets itself.
-        trackedBot = FindObjectOfType<GhostBot>();
+        trackedBot = FindFirstObjectByType<GhostBot>();
         ApplyKindVisuals();
     }
 

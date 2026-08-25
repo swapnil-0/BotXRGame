@@ -49,6 +49,38 @@ public class ArenaRun : MonoBehaviour
 
     private Vector3 startPoint, forward, finishPoint;
     private float arenaSize, floorY, hoverHeight;
+    private Transform playAreaAnchor;
+
+    [Header("Tornado Capture")]
+    [Tooltip("Seconds added to the clock when the vortex swallows the ship.")]
+    public float capturePenaltySeconds = 3f;
+    [Tooltip("Where to restart after capture. Off = back to the start line.")]
+    public bool respawnAtStart = true;
+
+    /// <summary>How many times the vortex has caught the ship this run.</summary>
+    public int CaptureCount { get; private set; }
+
+    /// <summary>
+    /// Called by the tornado when the ship reaches the inescapable core.
+    /// Without this the ship is simply stuck forever, since the pull there
+    /// exceeds the ship's top speed by design.
+    /// </summary>
+    public void HandleCapture()
+    {
+        if (!IsRunning || ship == null) return;
+
+        CaptureCount++;
+        ElapsedSeconds += capturePenaltySeconds;
+
+        if (respawnAtStart)
+        {
+            ship.transform.position = new Vector3(
+                startPoint.x, floorY + hoverHeight, startPoint.z);
+            ship.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
+        }
+
+        SetHud(string.Format("Swallowed!  +{0:F0}s penalty", capturePenaltySeconds));
+    }
 
     /// <summary>Called by ArenaPlacer once the arena is committed.</summary>
     public void Begin(Vector3 origin, Vector3 fwd, float size, float y, float hover)
@@ -74,11 +106,20 @@ public class ArenaRun : MonoBehaviour
 
             // ArenaPlacer already constrains placement to clear floor, so the
             // play area is exactly the validated rectangle.
+            //
+            // Use a dedicated anchor object, NOT this transform. The preview
+            // quad, outline and finish marker are children of this object, so
+            // moving it to the arena centre drags them off the positions
+            // ShowPreview just set for them.
             if (clampToArena)
             {
-                ship.playAreaCenter = transform;
-                transform.position = origin + forward * (size * 0.5f);
-                transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
+                if (playAreaAnchor == null)
+                    playAreaAnchor = new GameObject("PlayAreaCentre").transform;
+
+                playAreaAnchor.position = origin + forward * (size * 0.5f);
+                playAreaAnchor.rotation = Quaternion.LookRotation(forward, Vector3.up);
+
+                ship.playAreaCenter = playAreaAnchor;
                 ship.playAreaSize = new Vector2(size, size);
             }
         }

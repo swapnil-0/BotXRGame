@@ -39,16 +39,32 @@ public class Tornado : MonoBehaviour
              "vortex feel like it is grabbing you. At 1.0 the pull equals the " +
              "ship's top speed at dead centre, so escape means driving straight " +
              "out; above ~1.2 the centre becomes a trap with no way out.")]
-    public float suckSpeedMultiple = 1.0f;
+    public float suckSpeedMultiple = 2.5f;
     [Tooltip("Fallback ship speed if the bot cannot be read.")]
     public float assumedShipSpeed = 0.10f;
     [Tooltip("No effect beyond this radius. Set from arena size by ArenaPlacer.")]
     public float influenceRadius = 0.41f;
-    [Range(0.2f, 2f)]
-    [Tooltip("Shape of the falloff from centre to edge. 1 is linear. Below 1 " +
-             "keeps the force strong further out, so the vortex grabs you on " +
-             "approach instead of only at the very centre.")]
-    public float falloffExponent = 0.6f;
+    [Range(0.2f, 4f)]
+    [Tooltip("Shape of the falloff. 1 is linear; 2 is quadratic - gentle at " +
+             "the rim and rising steeply toward the centre. With suck 2.5x and " +
+             "exponent 2, the pull matches ship speed at about 37% of the " +
+             "radius and exceeds it inside that, so the core cannot be escaped.")]
+    public float falloffExponent = 2f;
+
+    [Header("Capture")]
+    // A purely radial force cannot stop a ship driving straight through the
+    // middle: it accelerates it in and decelerates it out by the same amount,
+    // for no net effect. Only a pull stronger than the ship's top speed makes
+    // the centre a genuine trap - and once it is a trap, there has to be a way
+    // out, or the run soft-locks.
+    [Tooltip("Ship is swallowed inside this fraction of the influence radius.")]
+    [Range(0f, 0.5f)]
+    public float captureRadiusFraction = 0.12f;
+    [Tooltip("Off = the ship simply cannot escape the core, with no reset.")]
+    public bool captureEnabled = true;
+
+    /// <summary>Raised when the ship is swallowed. ArenaRun handles the reset.</summary>
+    public event System.Action OnCaptured;
     [Tooltip("Clockwise when true.")]
     public bool clockwise = true;
 
@@ -101,7 +117,15 @@ public class Tornado : MonoBehaviour
         delta.y = 0f;                                  // planar force only
         float d = delta.magnitude;
 
-        if (d >= influenceRadius || d < 1e-4f) return;
+        if (d >= influenceRadius) return;
+
+        if (captureEnabled && d <= influenceRadius * captureRadiusFraction)
+        {
+            OnCaptured?.Invoke();
+            return;
+        }
+
+        if (d < 1e-4f) return;
 
         // Strongest at the centre, nothing at the edge. The exponent shapes how
         // quickly it dies off: below 1 keeps meaningful force out near the rim,

@@ -184,6 +184,10 @@ public class ArenaPlacer : MonoBehaviour
                 if (run != null)
                     tornado.period = run.targetCrossingSeconds * tornadoPeriodFraction;
 
+                // The core is inescapable by design, so it needs an exit:
+                // ArenaRun resets the ship and adds a time penalty.
+                if (run != null) tornado.OnCaptured += run.HandleCapture;
+
                 var ring = tornado.radiusRing;
                 if (ring != null)
                 {

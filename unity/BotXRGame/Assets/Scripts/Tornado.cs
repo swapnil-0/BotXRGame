@@ -26,7 +26,7 @@ public class Tornado : MonoBehaviour
     [Tooltip("Left empty, the first GhostBot in the scene is found automatically.")]
     public GhostBot bot;
 
-    [Header("Force — expressed as a multiple of ship speed")]
+    [Header("Force - expressed as a multiple of ship speed")]
     // Absolute m/s values do not transfer between ship speeds. At 0.2 m/s a
     // 0.85 m/s swirl is a fun shove; at 0.10 m/s the same number is eight times
     // the player's authority and most starts become unwinnable. Scaling to ship

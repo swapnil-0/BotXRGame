@@ -163,7 +163,7 @@ public class ArenaPlacer : MonoBehaviour
         }
 
         // Start the run first, so the ship's speed is set before the tornado
-        // reads it — the vortex scales its force to whatever the ship can do.
+        // reads it - the vortex scales its force to whatever the ship can do.
         if (run != null)
             run.Begin(aimOrigin, aimForward, arenaSize, floorY, hoverHeight);
 

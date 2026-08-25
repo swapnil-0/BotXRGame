@@ -27,6 +27,15 @@ public class GhostBot : MonoBehaviour
     [Tooltip("Stick magnitude below this is treated as zero.")]
     public float deadzone = 0.15f;
 
+    [Header("Inertia")]
+    // Without this the ship snaps to full velocity the instant the stick moves
+    // and stops dead on release, which reads as twitchy regardless of how low
+    // the top speed is. It also let the player counter the vortex instantly.
+    [Tooltip("Seconds to reach full speed. 0 disables smoothing.")]
+    public float accelerationTime = 0.4f;
+    [Tooltip("Seconds to reach full turn rate.")]
+    public float turnAccelerationTime = 0.25f;
+
     [Header("Play Area")]
     [Tooltip("Optional. If set, the bot cannot leave this rectangle.")]
     public Transform playAreaCenter;
@@ -47,6 +56,7 @@ public class GhostBot : MonoBehaviour
     public Vector3 ExternalVelocity { get; private set; }
 
     private Vector3 externalAccum;
+    private float linearVel, angularVel;   // SmoothDamp state
 
     void OnEnable()
     {
@@ -71,14 +81,23 @@ public class GhostBot : MonoBehaviour
 
         // Same mapping RobotController uses, so the ghost and the real robot
         // respond identically to the same stick position.
-        LinearX = stick.y * linearSpeed;
-        AngularZ = -stick.x * angularSpeed;
+        float targetLinear = stick.y * linearSpeed;
+        float targetAngular = -stick.x * angularSpeed;
 
         if (MotionLocked)
         {
-            LinearX = 0f;
-            AngularZ = 0f;
+            targetLinear = 0f;
+            targetAngular = 0f;
         }
+
+        // Ramp toward the commanded velocity so the ship carries momentum.
+        LinearX = accelerationTime > 0.001f
+            ? Mathf.SmoothDamp(LinearX, targetLinear, ref linearVel, accelerationTime)
+            : targetLinear;
+
+        AngularZ = turnAccelerationTime > 0.001f
+            ? Mathf.SmoothDamp(AngularZ, targetAngular, ref angularVel, turnAccelerationTime)
+            : targetAngular;
 
         // Yaw first, then translate along the new heading - this is the same
         // integration order bot_sim uses, so the two stay in agreement.

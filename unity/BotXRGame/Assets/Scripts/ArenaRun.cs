@@ -55,6 +55,10 @@ public class ArenaRun : MonoBehaviour
     public bool showTelemetry = true;
     [Tooltip("Found automatically if left empty.")]
     public Tornado tornado;
+    [Tooltip("Seconds for a full 180 degree turn at full stick. Rotation was " +
+             "previously left unscaled at 2 rad/s - about 115 deg/s - which " +
+             "feels twitchy no matter how slow the forward speed is.")]
+    public float targetTurnSeconds = 2.5f;
     [Tooltip("Uncheck to drive the ship at whatever speed GhostBot is set to.")]
     public bool overrideShipSpeed = true;
 
@@ -156,7 +160,14 @@ public class ArenaRun : MonoBehaviour
             ship.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
             ship.acceptExternalForces = true;
 
-            if (overrideShipSpeed) ship.linearSpeed = RunSpeed;
+            if (overrideShipSpeed)
+            {
+                ship.linearSpeed = RunSpeed;
+                // Scale turn rate too. Leaving it at the default made the ship
+                // spin far faster than it translated, which is most of what
+                // read as "too fast".
+                ship.angularSpeed = Mathf.PI / Mathf.Max(targetTurnSeconds, 0.2f);
+            }
 
             // ArenaPlacer already constrains placement to clear floor, so the
             // play area is exactly the validated rectangle.

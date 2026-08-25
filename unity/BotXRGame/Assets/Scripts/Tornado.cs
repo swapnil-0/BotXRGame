@@ -31,19 +31,24 @@ public class Tornado : MonoBehaviour
     // 0.85 m/s swirl is a fun shove; at 0.10 m/s the same number is eight times
     // the player's authority and most starts become unwinnable. Scaling to ship
     // speed keeps the game playable whatever the ship is tuned to.
-    [Tooltip("Tangential push at full strength and dead centre, as a multiple " +
-             "of ship speed. Around 0.9 is a strong but fair shove; above ~1.5 " +
-             "the player loses authority near the centre.")]
-    public float swirlSpeedMultiple = 0.9f;
-    [Tooltip("Inward pull, as a multiple of ship speed. Keep well below swirl - " +
-             "suck slows the ship without visibly moving it, which reads as " +
-             "broken controls rather than as weather.")]
-    public float suckSpeedMultiple = 0.4f;
+    [Tooltip("Tangential push, as a multiple of ship speed. Produces orbiting " +
+             "and the visual sense of rotation, but on its own it never drags " +
+             "the ship inward.")]
+    public float swirlSpeedMultiple = 0.6f;
+    [Tooltip("Inward pull, as a multiple of ship speed. This is what makes the " +
+             "vortex feel like it is grabbing you. At 1.0 the pull equals the " +
+             "ship's top speed at dead centre, so escape means driving straight " +
+             "out; above ~1.2 the centre becomes a trap with no way out.")]
+    public float suckSpeedMultiple = 1.0f;
     [Tooltip("Fallback ship speed if the bot cannot be read.")]
     public float assumedShipSpeed = 0.10f;
-    [Tooltip("No effect beyond this radius. About a third of a 3 ft arena. " +
-             "Larger forces a wider detour and a longer crossing.")]
-    public float influenceRadius = 0.32f;
+    [Tooltip("No effect beyond this radius. Set from arena size by ArenaPlacer.")]
+    public float influenceRadius = 0.41f;
+    [Range(0.2f, 2f)]
+    [Tooltip("Shape of the falloff from centre to edge. 1 is linear. Below 1 " +
+             "keeps the force strong further out, so the vortex grabs you on " +
+             "approach instead of only at the very centre.")]
+    public float falloffExponent = 0.6f;
     [Tooltip("Clockwise when true.")]
     public bool clockwise = true;
 
@@ -98,8 +103,11 @@ public class Tornado : MonoBehaviour
 
         if (d >= influenceRadius || d < 1e-4f) return;
 
-        // Linear falloff: strongest at the centre, nothing at the edge.
-        float falloff = 1f - (d / influenceRadius);
+        // Strongest at the centre, nothing at the edge. The exponent shapes how
+        // quickly it dies off: below 1 keeps meaningful force out near the rim,
+        // which is what makes the vortex feel like it grabs you on approach
+        // rather than only misbehaving at the very centre.
+        float falloff = Mathf.Pow(1f - (d / influenceRadius), falloffExponent);
         float s = Strength * falloff;
 
         Vector3 inward = -delta / d;

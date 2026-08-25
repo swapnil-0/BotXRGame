@@ -40,10 +40,11 @@ public class ArenaPlacer : MonoBehaviour
     public float hoverHeight = 0.04f;
 
     [Header("Tornado")]
-    [Tooltip("Influence radius as a fraction of arena size. 0.35 leaves clear " +
-             "ground at the start and finish while still forcing a detour.")]
+    [Tooltip("Influence radius as a fraction of arena size. 0.45 means the pull " +
+             "is felt across most of the crossing; lower values confine it to " +
+             "the middle and leave the approach uneventful.")]
     [Range(0.1f, 0.6f)]
-    public float tornadoRadiusFraction = 0.35f;
+    public float tornadoRadiusFraction = 0.45f;
     [Tooltip("Breathing period as a fraction of the target crossing time. " +
              "Near 1 means the player experiences roughly one gust per run.")]
     [Range(0.3f, 2f)]
@@ -208,9 +209,16 @@ public class ArenaPlacer : MonoBehaviour
             previewSurface.gameObject.SetActive(true);
             var tr = previewSurface.transform;
             tr.position = new Vector3(centre.x, floorY + 0.003f, centre.z);
-            tr.rotation = Quaternion.LookRotation(aimForward, Vector3.up);
-            // A default Unity quad is 1x1 in its local XY, laid flat by the
-            // rotation above, so scaling by arenaSize covers the footprint.
+
+            // A Unity Quad's face lies in its local XY plane with the normal
+            // along local +Z. LookRotation sets local +Z to its first argument,
+            // so the normal must be given as Vector3.up - passing aimForward
+            // there points the normal along the floor and the quad stands up
+            // as a vertical wall.
+            //
+            // With +Z up, the quad's local X spans width and local Y spans
+            // depth along aimForward.
+            tr.rotation = Quaternion.LookRotation(Vector3.up, aimForward);
             tr.localScale = new Vector3(arenaSize, arenaSize, 1f);
 
             if (previewSurface.material != null)

@@ -215,14 +215,18 @@ public class ArenaPlacer : MonoBehaviour
     {
         CollectibleCup.ResetAll();
 
-        // Fixed fractional layout: spread across the course, alternating
-        // sides, none on the tornado patrol lines (0.38 and 0.68 forward).
+        // Fixed fractional layout, chosen so every cup sits in a gap between
+        // the tornado sweep bands. The patrols run at 0.38 and 0.68 of the
+        // course with a radius of 0.16 x arena, so their danger bands span
+        // roughly 0.22-0.54 and 0.52-0.84 forward. Cups go before, between
+        // and after those bands - the player still has to CROSS the bands to
+        // reach them, but standing at a cup is safe.
         Vector2[] layout =
         {
-            new Vector2(-0.28f, 0.22f),
-            new Vector2( 0.26f, 0.50f),
-            new Vector2(-0.22f, 0.62f),
-            new Vector2( 0.24f, 0.85f),
+            new Vector2(-0.28f, 0.14f),   // before the first band
+            new Vector2( 0.30f, 0.17f),   // before the first band, far side
+            new Vector2(-0.30f, 0.56f),   // the slot between the two bands
+            new Vector2( 0.26f, 0.90f),   // past the second band
         };
 
         for (int i = 0; i < Mathf.Min(cupCount, layout.Length); i++)

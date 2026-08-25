@@ -14,7 +14,10 @@ public class CollectibleCup : MonoBehaviour
     public static event System.Action<CollectibleCup> OnCollected;
 
     [Tooltip("Ship centre within this distance collects the cup.")]
-    public float collectRadius = 0.15f;
+    public float collectRadius = 0.28f;
+    // 0.15 was a near-miss machine: the cup is 7 cm wide and the test runs
+    // against the ship's ORIGIN, so "visually through it" while turning could
+    // still pass 20 cm from the centre. 0.28 forgives that.
 
     private GhostBot ship;
     private bool collected;

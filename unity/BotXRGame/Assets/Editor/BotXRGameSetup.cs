@@ -20,7 +20,7 @@ using UnityEngine.XR.ARFoundation;
 
 public static class BotXRGameSetup
 {
-    private const float ArenaSize = 0.9144f;          // 3 ft
+    private const float ArenaSize = 1.8288f;          // 6 ft
     private const string MatDir = "Assets/Materials/Generated";
     private const string PrefabDir = "Assets/Prefabs/Generated";
 
@@ -128,7 +128,16 @@ public static class BotXRGameSetup
             { "finishMarker", finish.transform },
             { "tornadoPrefab", tornadoPrefab },
         });
-        SetFloat(placer, "arenaSize", ArenaSize);
+        // Only seed the size on a fresh placer. Re-running the builder must
+        // never overwrite a size the user has tuned by hand - it silently
+        // shrank a 6 ft arena back to 3 ft once already.
+        var soP = new SerializedObject(placer);
+        var sizeProp = soP.FindProperty("arenaSize");
+        if (sizeProp != null && sizeProp.floatValue < 0.01f)
+        {
+            sizeProp.floatValue = ArenaSize;
+            soP.ApplyModifiedPropertiesWithoutUndo();
+        }
 
         // Cups are spawned at runtime; the material must be a project asset or
         // its shader is stripped from the build and renders magenta (and only

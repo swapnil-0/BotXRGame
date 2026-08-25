@@ -34,12 +34,12 @@ public class Tornado : MonoBehaviour
     // vortex genuinely out-muscle the ship near the centre.
     [Tooltip("Inward pull at dead centre, metres per second. This should be " +
              "several times the ship's speed or the core is not a threat.")]
-    public float suckMetersPerSecond = 0.6f;
+    public float suckMetersPerSecond = 1.2f;
     [Tooltip("Tangential push at dead centre, metres per second. Swirl and suck " +
              "balance into a stable orbit: tangential force sustains a circular " +
              "path while radial pull tries to close it. Keep it well under suck " +
              "or the ship circles indefinitely instead of spiralling in.")]
-    public float swirlMetersPerSecond = 0.15f;
+    public float swirlMetersPerSecond = 0.25f;
 
     [Header("Force - legacy, relative to ship speed")]
     [Tooltip("Use the multiples below instead of the absolute values above.")]

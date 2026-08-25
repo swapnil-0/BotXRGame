@@ -32,10 +32,22 @@ public class ArenaPlacer : MonoBehaviour
     [Range(0.1f, 0.9f)] public float pressThreshold = 0.5f;
 
     [Header("Arena")]
-    [Tooltip("Edge length in metres. 0.9144 = 3 ft.")]
+    [Tooltip("Edge length in metres. 0.9144 = 3 ft (fits a small room), " +
+             "2.4384 = 8 ft (the real field). Ship speed and tornado size are " +
+             "derived from this, so a course tuned small behaves the same large.")]
     public float arenaSize = 0.9144f;
     [Tooltip("How far the ship floats above the floor.")]
     public float hoverHeight = 0.04f;
+
+    [Header("Tornado")]
+    [Tooltip("Influence radius as a fraction of arena size. 0.35 leaves clear " +
+             "ground at the start and finish while still forcing a detour.")]
+    [Range(0.1f, 0.6f)]
+    public float tornadoRadiusFraction = 0.35f;
+    [Tooltip("Breathing period as a fraction of the target crossing time. " +
+             "Near 1 means the player experiences roughly one gust per run.")]
+    [Range(0.3f, 2f)]
+    public float tornadoPeriodFraction = 0.9f;
 
     [Header("Validation")]
     [Tooltip("Grid resolution per side. 5 gives 25 probe points.")]
@@ -150,18 +162,35 @@ public class ArenaPlacer : MonoBehaviour
             finishMarker.position = new Vector3(finish.x, floorY + 0.005f, finish.z);
         }
 
+        // Start the run first, so the ship's speed is set before the tornado
+        // reads it — the vortex scales its force to whatever the ship can do.
+        if (run != null)
+            run.Begin(aimOrigin, aimForward, arenaSize, floorY, hoverHeight);
+
         if (tornadoPrefab != null)
         {
             var t = Instantiate(tornadoPrefab,
                                 new Vector3(centre.x, floorY, centre.z),
                                 Quaternion.identity);
             var tornado = t.GetComponent<Tornado>();
-            if (tornado != null && ship != null)
-                tornado.bot = ship.GetComponent<GhostBot>();
-        }
+            if (tornado != null)
+            {
+                if (ship != null) tornado.bot = ship.GetComponent<GhostBot>();
 
-        if (run != null)
-            run.Begin(aimOrigin, aimForward, arenaSize, floorY, hoverHeight);
+                // Everything proportional to the arena, so the same feel
+                // survives a change of field size.
+                tornado.influenceRadius = arenaSize * tornadoRadiusFraction;
+                if (run != null)
+                    tornado.period = run.targetCrossingSeconds * tornadoPeriodFraction;
+
+                var ring = tornado.radiusRing;
+                if (ring != null)
+                {
+                    float d = tornado.influenceRadius * 2f;
+                    ring.localScale = new Vector3(d, ring.localScale.y, d);
+                }
+            }
+        }
 
         OnPlaced?.Invoke(aimOrigin, aimForward);
     }

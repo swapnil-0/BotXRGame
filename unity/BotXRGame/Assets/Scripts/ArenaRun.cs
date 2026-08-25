@@ -27,12 +27,19 @@ public class ArenaRun : MonoBehaviour
     public bool clampToArena = true;
 
     [Header("Ship Tuning")]
-    [Tooltip("Applied on Begin. 0.10 m/s gives a 9.1 s clean line across 3 ft; " +
-             "steering around the tornado stretches it to roughly 10-11 s. " +
-             "At 0.6 m/s the crossing takes 1.5 s, far too short for a " +
-             "breathing tornado to be felt at all.")]
-    public float runSpeed = 0.10f;
+    // Speed is DERIVED from arena size rather than fixed, so a course tuned in
+    // a small room behaves identically on the full-size field. A fixed 0.10 m/s
+    // gives a 9 s crossing at 3 ft but 24 s at 8 ft - the same numbers produce
+    // completely different games.
+    [Tooltip("How long a clean, undisturbed crossing should take. Steering " +
+             "around the tornado adds roughly 10-20% on top. Ship speed is " +
+             "computed from this and the arena size.")]
+    public float targetCrossingSeconds = 9f;
+    [Tooltip("Uncheck to drive the ship at whatever speed GhostBot is set to.")]
     public bool overrideShipSpeed = true;
+
+    /// <summary>Speed actually applied on the last Begin, m/s.</summary>
+    public float RunSpeed { get; private set; }
 
     public bool IsRunning { get; private set; }
     public float ElapsedSeconds { get; private set; }
@@ -53,13 +60,17 @@ public class ArenaRun : MonoBehaviour
         hoverHeight = hover;
         finishPoint = origin + forward * size;
 
+        // Scale speed to the arena so the crossing always takes about the same
+        // time, whether this is a 3 ft test square or the full 8 ft field.
+        RunSpeed = arenaSize / Mathf.Max(targetCrossingSeconds, 0.5f);
+
         if (ship != null)
         {
             ship.transform.position = new Vector3(origin.x, y + hover, origin.z);
             ship.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
             ship.acceptExternalForces = true;
 
-            if (overrideShipSpeed) ship.linearSpeed = runSpeed;
+            if (overrideShipSpeed) ship.linearSpeed = RunSpeed;
 
             // ArenaPlacer already constrains placement to clear floor, so the
             // play area is exactly the validated rectangle.

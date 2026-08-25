@@ -75,8 +75,30 @@ public class ArenaPlacer : MonoBehaviour
     public Color invalidColour = new Color(1f, 0.25f, 0.2f, 0.35f);
     public Color placedColour = new Color(0.2f, 0.9f, 0.35f, 0.30f);
 
+    public enum Phase { Area, Ship, Done }
+    /// <summary>Area first, then the ship separately inside it, then play.</summary>
+    public Phase CurrentPhase { get; private set; } = Phase.Area;
+
+    [Header("Course - spawned once the ship is placed")]
+    [Tooltip("Cups to scatter. New field, so the code default applies.")]
+    public int cupCount = 4;
+    [Tooltip("Cup visual height, metres.")]
+    public float cupHeight = 0.10f;
+    [Tooltip("Number of patrolling tornadoes across the course.")]
+    public int tornadoCount = 2;
+    [Tooltip("Twin-tornado influence radius as a fraction of arena size. " +
+             "Smaller than the single-tornado value: two of them plus movement " +
+             "covers plenty of ground already.")]
+    public float twinTornadoRadiusFraction = 0.16f;
+    [Tooltip("Side-to-side travel as a fraction of arena size.")]
+    public float tornadoPatrolFraction = 0.28f;
+
     public bool IsPlaced { get; private set; }
     public event Action<Vector3, Vector3> OnPlaced;   // origin, forward
+
+    // Committed arena, captured at the end of the Area phase.
+    private Vector3 arenaOrigin, arenaForward, arenaRight;
+    private float arenaFloorY;
 
     private ArenaRun run;
     private bool wasPressed;
@@ -94,11 +116,167 @@ public class ArenaPlacer : MonoBehaviour
             placeAction.action.Enable();
     }
 
+    void Start()
+    {
+        // The ship only appears once the area exists - during area selection
+        // the player should see nothing but the rectangle.
+        if (ship != null) ship.gameObject.SetActive(false);
+    }
+
     void Update()
     {
-        if (IsPlaced) return;
-        UpdateAim();
-        ReadInput();
+        if (CurrentPhase == Phase.Done) return;
+
+        if (CurrentPhase == Phase.Area)
+        {
+            UpdateAim();
+            ReadInput();
+        }
+        else
+        {
+            UpdateShipAim();
+            ReadShipInput();
+        }
+    }
+
+    // ------------------------------------------------- phase 2: place ship
+
+    private bool shipAimValid;
+    private Vector3 shipAimPoint;
+
+    private void UpdateShipAim()
+    {
+        if (raycastManager == null || rayOrigin == null || ship == null) return;
+
+        var ray = new Ray(rayOrigin.position, rayOrigin.forward);
+        if (!raycastManager.Raycast(ray, hits, TrackableType.PlaneWithinPolygon))
+        {
+            shipAimValid = false;
+            return;
+        }
+
+        Vector3 hit = hits[0].pose.position;
+
+        // Inside the committed arena? Work in arena-local coordinates, with a
+        // small inset so the ship cannot start half over the boundary.
+        Vector3 rel = hit - arenaOrigin;
+        float fwdDist = Vector3.Dot(rel, arenaForward);
+        float sideDist = Vector3.Dot(rel, arenaRight);
+        float half = arenaSize * 0.5f;
+        float inset = 0.06f;
+
+        shipAimValid = fwdDist >= inset && fwdDist <= arenaSize - inset
+                       && Mathf.Abs(sideDist) <= half - inset;
+
+        ship.gameObject.SetActive(true);
+        ship.transform.position = new Vector3(hit.x, arenaFloorY + hoverHeight, hit.z);
+        ship.transform.rotation = Quaternion.LookRotation(arenaForward, Vector3.up);
+        shipAimPoint = ship.transform.position;
+    }
+
+    private bool shipWasPressed;
+
+    private void ReadShipInput()
+    {
+        float v = (placeAction != null && placeAction.action != null)
+            ? placeAction.action.ReadValue<float>() : 0f;
+        bool pressed = v > pressThreshold;
+
+        if (pressed && !shipWasPressed && shipAimValid) CommitShip();
+        shipWasPressed = pressed;
+    }
+
+    private void CommitShip()
+    {
+        CurrentPhase = Phase.Done;
+        IsPlaced = true;
+
+        SpawnCups();
+        SpawnTornadoes();
+
+        if (run != null)
+            run.BeginAt(shipAimPoint, arenaOrigin, arenaForward,
+                        arenaSize, arenaFloorY, hoverHeight);
+
+        OnPlaced?.Invoke(arenaOrigin, arenaForward);
+    }
+
+    // ------------------------------------------------------ course spawning
+
+    private Vector3 ArenaPoint(float sideFrac, float fwdFrac)
+    {
+        // sideFrac in [-0.5, 0.5] across the width, fwdFrac in [0, 1] along it.
+        return arenaOrigin
+             + arenaRight * (sideFrac * arenaSize)
+             + arenaForward * (fwdFrac * arenaSize);
+    }
+
+    private void SpawnCups()
+    {
+        CollectibleCup.ResetAll();
+
+        // Fixed fractional layout: spread across the course, alternating
+        // sides, none on the tornado patrol lines (0.38 and 0.68 forward).
+        Vector2[] layout =
+        {
+            new Vector2(-0.28f, 0.22f),
+            new Vector2( 0.26f, 0.50f),
+            new Vector2(-0.22f, 0.62f),
+            new Vector2( 0.24f, 0.85f),
+        };
+
+        for (int i = 0; i < Mathf.Min(cupCount, layout.Length); i++)
+        {
+            var cup = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            cup.name = "Cup_" + (i + 1);
+            var col = cup.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            Vector3 p = ArenaPoint(layout[i].x, layout[i].y);
+            cup.transform.position = new Vector3(p.x, arenaFloorY + cupHeight * 0.5f, p.z);
+            cup.transform.localScale = new Vector3(0.07f, cupHeight * 0.5f, 0.07f);
+
+            var r = cup.GetComponent<Renderer>();
+            if (r != null) r.material.color = new Color(0.15f, 0.9f, 0.35f);
+
+            cup.AddComponent<CollectibleCup>();
+        }
+    }
+
+    private void SpawnTornadoes()
+    {
+        if (tornadoPrefab == null) return;
+
+        // Two patrol lines across the course. Different periods and phases so
+        // the gaps between them keep shifting and there is no fixed safe lane.
+        float[] fwdFracs = { 0.38f, 0.68f };
+        float[] periods = { 6.5f, 9.0f };
+        float[] phases = { 0f, Mathf.PI * 0.7f };
+
+        for (int i = 0; i < Mathf.Min(tornadoCount, fwdFracs.Length); i++)
+        {
+            Vector3 basePos = ArenaPoint(0f, fwdFracs[i]);
+            var t = Instantiate(tornadoPrefab,
+                                new Vector3(basePos.x, arenaFloorY, basePos.z),
+                                Quaternion.identity);
+            var tornado = t.GetComponent<Tornado>();
+            if (tornado == null) continue;
+
+            if (ship != null) tornado.bot = ship.GetComponent<GhostBot>();
+            tornado.influenceRadius = arenaSize * twinTornadoRadiusFraction;
+            tornado.InitPatrol(arenaRight,
+                               arenaSize * tornadoPatrolFraction,
+                               periods[i], phases[i]);
+
+            if (run != null) tornado.OnCaptured += run.HandleCapture;
+
+            var ring = tornado.radiusRing;
+            if (ring != null)
+            {
+                float d = tornado.influenceRadius * 2f;
+                ring.localScale = new Vector3(d, ring.localScale.y, d);
+            }
+        }
     }
 
     private void UpdateAim()
@@ -133,11 +311,7 @@ public class ArenaPlacer : MonoBehaviour
 
         ShowPreview(aimValid ? validColour : invalidColour);
 
-        if (ship != null)
-        {
-            ship.position = aimOrigin + Vector3.up * hoverHeight;
-            ship.rotation = Quaternion.LookRotation(aimForward, Vector3.up);
-        }
+        // The ship stays hidden during area selection; it appears in phase 2.
     }
 
     private void ReadInput()
@@ -150,55 +324,27 @@ public class ArenaPlacer : MonoBehaviour
         wasPressed = pressed;
     }
 
+    /// <summary>End of phase 1: commit the area, move on to placing the ship.</summary>
     private void Place()
     {
-        IsPlaced = true;
+        arenaOrigin = aimOrigin;
+        arenaForward = aimForward;
+        arenaRight = Vector3.Cross(Vector3.up, aimForward).normalized;
+        arenaFloorY = floorY;
+
         ShowPreview(placedColour);
 
-        Vector3 centre = aimOrigin + aimForward * (arenaSize * 0.5f);
-        Vector3 finish = aimOrigin + aimForward * arenaSize;
-
+        Vector3 finish = arenaOrigin + arenaForward * arenaSize;
         if (finishMarker != null)
         {
             finishMarker.gameObject.SetActive(true);
             finishMarker.position = new Vector3(finish.x, floorY + 0.005f, finish.z);
         }
 
-        // Start the run first, so the ship's speed is set before the tornado
-        // reads it - the vortex scales its force to whatever the ship can do.
-        if (run != null)
-            run.Begin(aimOrigin, aimForward, arenaSize, floorY, hoverHeight);
-
-        if (tornadoPrefab != null)
-        {
-            var t = Instantiate(tornadoPrefab,
-                                new Vector3(centre.x, floorY, centre.z),
-                                Quaternion.identity);
-            var tornado = t.GetComponent<Tornado>();
-            if (tornado != null)
-            {
-                if (ship != null) tornado.bot = ship.GetComponent<GhostBot>();
-
-                // Everything proportional to the arena, so the same feel
-                // survives a change of field size.
-                tornado.influenceRadius = arenaSize * tornadoRadiusFraction;
-                if (run != null)
-                    tornado.period = run.targetCrossingSeconds * tornadoPeriodFraction;
-
-                // The core is inescapable by design, so it needs an exit:
-                // ArenaRun resets the ship and adds a time penalty.
-                if (run != null) tornado.OnCaptured += run.HandleCapture;
-
-                var ring = tornado.radiusRing;
-                if (ring != null)
-                {
-                    float d = tornado.influenceRadius * 2f;
-                    ring.localScale = new Vector3(d, ring.localScale.y, d);
-                }
-            }
-        }
-
-        OnPlaced?.Invoke(aimOrigin, aimForward);
+        CurrentPhase = Phase.Ship;
+        // Consume this press so the same trigger pull cannot immediately place
+        // the ship as well.
+        shipWasPressed = true;
     }
 
     // ------------------------------------------------------------- visuals

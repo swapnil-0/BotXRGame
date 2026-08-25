@@ -83,6 +83,30 @@ public class Tornado : MonoBehaviour
 
     /// <summary>Raised when the ship is swallowed. ArenaRun handles the reset.</summary>
     public event System.Action OnCaptured;
+
+    [Header("Patrol")]
+    [Tooltip("Metres of side-to-side travel from the base position. 0 = static.")]
+    public float patrolAmplitude = 0f;
+    [Tooltip("Seconds for one full there-and-back cycle.")]
+    public float patrolPeriod = 7f;
+    [Tooltip("World-space direction of travel. Set by the spawner.")]
+    public Vector3 patrolDirection = Vector3.right;
+    [Tooltip("Phase offset so two tornadoes are not synchronised.")]
+    public float patrolPhase = 0f;
+
+    private Vector3 patrolBase;
+    private bool patrolBaseSet;
+
+    /// <summary>Configure side-to-side movement. Call after positioning.</summary>
+    public void InitPatrol(Vector3 direction, float amplitude, float period, float phase)
+    {
+        patrolDirection = direction.normalized;
+        patrolAmplitude = amplitude;
+        patrolPeriod = Mathf.Max(period, 0.5f);
+        patrolPhase = phase;
+        patrolBase = transform.position;
+        patrolBaseSet = true;
+    }
     [Tooltip("Clockwise when true.")]
     public bool clockwise = true;
 
@@ -134,6 +158,13 @@ public class Tornado : MonoBehaviour
         float wave = 0.5f + 0.5f * Mathf.Sin(
             (Time.time / Mathf.Max(period, 0.01f)) * 2f * Mathf.PI + phaseOffset);
         Strength = Mathf.Lerp(minStrength, 1f, wave);
+
+        if (patrolAmplitude > 0f)
+        {
+            if (!patrolBaseSet) { patrolBase = transform.position; patrolBaseSet = true; }
+            float s = Mathf.Sin((Time.time / patrolPeriod) * 2f * Mathf.PI + patrolPhase);
+            transform.position = patrolBase + patrolDirection * (s * patrolAmplitude);
+        }
 
         UpdateVisuals();
         ApplyForce();

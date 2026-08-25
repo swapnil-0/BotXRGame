@@ -23,6 +23,8 @@ public class ArenaRun : MonoBehaviour
     [Header("Rules")]
     [Tooltip("How close to the finish midpoint counts as arriving.")]
     public float finishRadius = 0.10f;
+    [Tooltip("The finish only opens once every cup has been collected.")]
+    public bool requireAllCups = true;
     [Tooltip("Keep the ship inside the arena footprint.")]
     public bool clampToArena = true;
 
@@ -147,12 +149,25 @@ public class ArenaRun : MonoBehaviour
     /// <summary>Called by ArenaPlacer once the arena is committed.</summary>
     public void Begin(Vector3 origin, Vector3 fwd, float size, float y, float hover)
     {
-        startPoint = origin;
+        // Ship starts at the near-edge midpoint; finish at the far edge.
+        BeginAt(origin, origin, fwd, size, y, hover);
+    }
+
+    /// <summary>
+    /// Start a run with the ship somewhere other than the arena edge - used
+    /// when the player places the ship freely inside the area. The finish and
+    /// the clamp are derived from the ARENA, the respawn point from the ship.
+    /// </summary>
+    public void BeginAt(Vector3 shipStart, Vector3 arenaOrigin, Vector3 fwd,
+                        float size, float y, float hover)
+    {
+        startPoint = shipStart;
         forward = fwd.normalized;
         arenaSize = size;
         floorY = y;
         hoverHeight = hover;
-        finishPoint = origin + forward * size;
+        finishPoint = arenaOrigin + forward * size;
+        Vector3 origin = shipStart;   // ship spawn position below
 
         // Scale speed to the arena so the crossing always takes about the same
         // time, whether this is a 3 ft test square or the full 8 ft field.
@@ -186,7 +201,9 @@ public class ArenaRun : MonoBehaviour
                 if (playAreaAnchor == null)
                     playAreaAnchor = new GameObject("PlayAreaCentre").transform;
 
-                playAreaAnchor.position = origin + forward * (size * 0.5f);
+                // Derive from the finish (arena far edge), not from the ship's
+                // start - the ship may have been placed anywhere inside.
+                playAreaAnchor.position = finishPoint - forward * (size * 0.5f);
                 playAreaAnchor.rotation = Quaternion.LookRotation(forward, Vector3.up);
 
                 ship.playAreaCenter = playAreaAnchor;
@@ -227,6 +244,14 @@ public class ArenaRun : MonoBehaviour
 
         if (remaining <= finishRadius)
         {
+            // The round is collect-then-escape: the finish only opens once
+            // every cup is gathered, otherwise it just nags.
+            if (requireAllCups && CollectibleCup.Remaining > 0)
+            {
+                SetHud(string.Format("Collect all cups first!  {0} left",
+                                     CollectibleCup.Remaining));
+                return;
+            }
             Finish();
             return;
         }
@@ -264,7 +289,10 @@ public class ArenaRun : MonoBehaviour
         }
         else
         {
-            SetHud(string.Format("{0:F1}s   {1:F2} m to go", ElapsedSeconds, remaining));
+            SetHud(string.Format("{0:F1}s   {1:F2} m to go   cups {2}/{3}",
+                                 ElapsedSeconds, remaining,
+                                 CollectibleCup.CollectedCount,
+                                 CollectibleCup.CollectedCount + CollectibleCup.Remaining));
         }
     }
 

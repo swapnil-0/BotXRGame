@@ -73,7 +73,7 @@ public class Tornado : MonoBehaviour
 
     void Start()
     {
-        if (bot == null) bot = FindFirstObjectByType<GhostBot>();
+        if (bot == null) bot = FindAnyObjectByType<GhostBot>();
         if (radiusRing != null)
             radiusRing.localScale = new Vector3(influenceRadius * 2f, 1f, influenceRadius * 2f);
     }

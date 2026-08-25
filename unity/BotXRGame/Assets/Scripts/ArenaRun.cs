@@ -164,12 +164,27 @@ public class ArenaRun : MonoBehaviour
             // out-muscle the ship.
             if (tornado == null) tornado = FindAnyObjectByType<Tornado>();
 
-            string t = tornado == null
-                ? "no tornado"
-                : string.Format("d {0:F2}m  pull {1:F2}  ship {2:F2}  x{3:F1}  str {4:F2}",
-                    tornado.LastDistance, tornado.LastPull, tornado.LastShipSpeed,
-                    tornado.LastShipSpeed > 0.001f ? tornado.LastPull / tornado.LastShipSpeed : 0f,
+            string t;
+            if (tornado == null)
+            {
+                t = "NO TORNADO IN SCENE";
+            }
+            else
+            {
+                // Distance to the tornado is measured here as well as inside
+                // Tornado itself, so a stale or unassigned bot reference shows
+                // up as a disagreement between the two numbers.
+                Vector3 tp = tornado.transform.position;
+                tp.y = p.y;
+                float actualDist = Vector3.Distance(p, tp);
+
+                t = string.Format(
+                    "{0}  d {1:F2}/{2:F2}  real {3:F2}\npull {4:F2}  ship {5:F2}  x{6:F1}  str {7:F2}",
+                    tornado.State, tornado.LastDistance, tornado.influenceRadius,
+                    actualDist, tornado.LastPull, RunSpeed,
+                    RunSpeed > 0.001f ? tornado.LastPull / RunSpeed : 0f,
                     tornado.Strength);
+            }
 
             SetHud(string.Format("{0:F1}s  {1:F2}m to go\n{2}", ElapsedSeconds, remaining, t));
         }

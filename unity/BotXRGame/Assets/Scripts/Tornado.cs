@@ -113,6 +113,10 @@ public class Tornado : MonoBehaviour
     public float LastPull { get; private set; }
     /// <summary>Ship speed as the tornado sees it, m/s.</summary>
     public float LastShipSpeed { get; private set; }
+    /// <summary>What the tornado did last frame: NO BOT, outside, pulling, CORE.</summary>
+    public string State { get; private set; } = "init";
+
+    private bool captureLatched;
 
     void Start()
     {
@@ -133,19 +137,46 @@ public class Tornado : MonoBehaviour
 
     private void ApplyForce()
     {
-        if (bot == null) return;
+        // Telemetry is written FIRST, before any early return. Putting it after
+        // the returns meant the one case worth diagnosing - the tornado
+        // deciding to do nothing - reported nothing at all.
+        if (bot == null)
+        {
+            State = "NO BOT";
+            LastDistance = float.PositiveInfinity;
+            LastPull = 0f;
+            return;
+        }
 
         Vector3 delta = bot.transform.position - transform.position;
         delta.y = 0f;                                  // planar force only
         float d = delta.magnitude;
 
-        if (d >= influenceRadius) return;
+        LastDistance = d;
+        LastShipSpeed = bot.linearSpeed;
+        LastPull = 0f;
+
+        if (d >= influenceRadius)
+        {
+            State = "outside";
+            captureLatched = false;
+            return;
+        }
 
         if (captureEnabled && d <= influenceRadius * captureRadiusFraction)
         {
-            OnCaptured?.Invoke();
+            State = "CORE";
+            // Latch, or capture fires every frame and stacks penalties.
+            if (!captureLatched)
+            {
+                captureLatched = true;
+                OnCaptured?.Invoke();
+            }
             return;
         }
+
+        captureLatched = false;
+        State = "pulling";
 
         if (d < 1e-4f) return;
 
@@ -174,10 +205,7 @@ public class Tornado : MonoBehaviour
 
         bot.AddExternalVelocity(inward * (suck * s) + tangent * (swirl * s));
 
-        // Telemetry, so tuning is measured rather than guessed at.
-        LastDistance = d;
         LastPull = suck * s;
-        LastShipSpeed = bot.linearSpeed;
     }
 
     private void UpdateVisuals()

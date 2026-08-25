@@ -47,16 +47,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tornado
   bot: {fileID: 0}
-  suckMetersPerSecond: 0.6
+  suckMetersPerSecond: 0.9
   swirlMetersPerSecond: 0.15
   useSpeedMultiples: 0
-  swirlSpeedMultiple: 0.9
-  suckSpeedMultiple: 0.4
+  swirlSpeedMultiple: 0.6
+  suckSpeedMultiple: 2.5
   assumedShipSpeed: 0.1
-  influenceRadius: 0.32
+  influenceRadius: 0.41
   falloffExponent: 1.5
-  captureRadiusFraction: 0.35
+  captureRadiusFraction: 0.22
   captureEnabled: 1
+  patrolAmplitude: 0
+  patrolPeriod: 7
+  patrolDirection: {x: 1, y: 0, z: 0}
+  patrolPhase: 0
   clockwise: 1
   period: 8
   minStrength: 0.35

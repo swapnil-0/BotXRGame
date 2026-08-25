@@ -243,12 +243,27 @@ public class Tornado : MonoBehaviour
         LastPull = suck * s;
     }
 
+    private Vector3 funnelBaseScale;
+    private bool funnelBaseSet;
+
+    /// <summary>Re-read the funnel's scale as the new breathing baseline.</summary>
+    public void RefreshFunnelBaseScale()
+    {
+        if (funnel != null) { funnelBaseScale = funnel.localScale; funnelBaseSet = true; }
+    }
+
     private void UpdateVisuals()
     {
         if (funnel != null)
         {
+            if (!funnelBaseSet) RefreshFunnelBaseScale();
+
+            // Breathe RELATIVE to the base scale. Writing an absolute 0.35-1.0
+            // here was the bug that made every funnel balloon to a metre wide,
+            // regardless of what the prefab or the spawner had set.
             float scale = Mathf.Lerp(minVisualScale, 1f, Strength);
-            funnel.localScale = new Vector3(scale, funnel.localScale.y, scale);
+            funnel.localScale = new Vector3(
+                funnelBaseScale.x * scale, funnelBaseScale.y, funnelBaseScale.z * scale);
             funnel.Rotate(0f, spinDegreesPerSecond * Strength * Time.deltaTime, 0f, Space.Self);
         }
 

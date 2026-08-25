@@ -1797,9 +1797,9 @@ MonoBehaviour:
   rayOrigin: {fileID: 23723604}
   placeAction: {fileID: 7904272356298805229, guid: c348712bda248c246b8c49b3db54643f, type: 3}
   pressThreshold: 0.5
-  arenaSize: 0.9144
+  arenaSize: 1.8288
   hoverHeight: 0.04
-  tornadoRadiusFraction: 0.35
+  tornadoRadiusFraction: 0.3
   tornadoPeriodFraction: 0.9
   samplesPerSide: 5
   useMeshObstacles: 1
@@ -1814,6 +1814,11 @@ MonoBehaviour:
   validColour: {r: 0.2, g: 0.5, b: 1, a: 0.35}
   invalidColour: {r: 1, g: 0.25, b: 0.2, a: 0.35}
   placedColour: {r: 0.2, g: 0.9, b: 0.35, a: 0.3}
+  cupCount: 4
+  cupHeight: 0.1
+  tornadoCount: 2
+  twinTornadoRadiusFraction: 0.16
+  tornadoPatrolFraction: 0.28
 --- !u!114 &861330930
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1829,9 +1834,23 @@ MonoBehaviour:
   ship: {fileID: 2119988582}
   hudText: {fileID: 1242201527}
   finishRadius: 0.1
+  requireAllCups: 1
   clampToArena: 1
   targetCrossingSeconds: 9
+  clampMargin: 0.15
+  finishEffect: {fileID: 0}
+  finishMarkerVisual: {fileID: 1054184900}
+  calmTornadoOnFinish: 1
+  audioSource: {fileID: 0}
+  finishClip: {fileID: 0}
+  showTelemetry: 1
+  tornado: {fileID: 0}
+  targetTurnSeconds: 2.5
   overrideShipSpeed: 1
+  captureHoldSeconds: 3
+  captureSpinDegreesPerSecond: 540
+  capturePenaltySeconds: 3
+  respawnAtStart: 1
 --- !u!4 &861330931
 Transform:
   m_ObjectHideFlags: 0
@@ -2489,10 +2508,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1951686361}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 50, y: -200}
-  m_SizeDelta: {x: 200, y: 50}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: -40, y: -40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1242201527
 MonoBehaviour:
@@ -2541,8 +2560,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 28
-  m_fontSizeBase: 28
+  m_fontSize: 18
+  m_fontSizeBase: 18
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -2558,7 +2577,7 @@ MonoBehaviour:
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
-  m_TextWrappingMode: 1
+  m_TextWrappingMode: 0
   m_wordWrappingRatios: 0.4
   m_overflowMode: 0
   m_linkedTextComponent: {fileID: 0}
@@ -2712,7 +2731,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1320862968}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aeb52fb9f7375bb4eb0ca4e06f9dec93, type: 3}
   m_Name: 
@@ -5156,6 +5175,8 @@ MonoBehaviour:
   linearSpeed: 0.6
   angularSpeed: 2
   deadzone: 0.15
+  accelerationTime: 0.4
+  turnAccelerationTime: 0.25
   playAreaCenter: {fileID: 0}
   playAreaSize: {x: 2.44, y: 2.44}
   acceptExternalForces: 1

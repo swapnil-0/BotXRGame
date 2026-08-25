@@ -130,6 +130,14 @@ public static class BotXRGameSetup
         });
         SetFloat(placer, "arenaSize", ArenaSize);
 
+        // Cups are spawned at runtime; the material must be a project asset or
+        // its shader is stripped from the build and renders magenta (and only
+        // in one eye under single-pass instanced XR).
+        Wire(placer, new Dictionary<string, Object>
+        {
+            { "cupMaterial", MakeOpaqueMaterial("CupGreen", new Color(0.15f, 0.9f, 0.35f)) },
+        });
+
         Wire(run, new Dictionary<string, Object> { { "ship", ghost } });
         Wire(floorSetup, new Dictionary<string, Object> { { "planeManager", planeManager } });
 
@@ -403,6 +411,20 @@ public static class BotXRGameSetup
     {
         var c = go.GetComponent<Collider>();
         if (c != null) Object.DestroyImmediate(c);
+    }
+
+    private static Material MakeOpaqueMaterial(string name, Color colour)
+    {
+        string path = MatDir + "/" + name + ".mat";
+        var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (existing != null) { existing.color = colour; return existing; }
+
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit")
+                        ?? Shader.Find("Universal Render Pipeline/Unlit")
+                        ?? Shader.Find("Standard");
+        var mat = new Material(shader) { name = name, color = colour };
+        AssetDatabase.CreateAsset(mat, path);
+        return mat;
     }
 
     private static Material MakeTransparentMaterial(string name, Color colour)

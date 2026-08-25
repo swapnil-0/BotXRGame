@@ -92,6 +92,11 @@ public class ArenaPlacer : MonoBehaviour
     public float twinTornadoRadiusFraction = 0.16f;
     [Tooltip("Side-to-side travel as a fraction of arena size.")]
     public float tornadoPatrolFraction = 0.28f;
+    [Tooltip("Material for spawned cups. MUST be an asset from the project - " +
+             "runtime-created primitives fall back to a default material whose " +
+             "shader can be stripped from URP builds, rendering magenta and, " +
+             "under single-pass instanced XR, only in one eye.")]
+    public Material cupMaterial;
 
     public bool IsPlaced { get; private set; }
     public event Action<Vector3, Vector3> OnPlaced;   // origin, forward
@@ -244,7 +249,21 @@ public class ArenaPlacer : MonoBehaviour
             cup.transform.localScale = new Vector3(0.07f, cupHeight * 0.5f, 0.07f);
 
             var r = cup.GetComponent<Renderer>();
-            if (r != null) r.material.color = new Color(0.15f, 0.9f, 0.35f);
+            if (r != null)
+            {
+                if (cupMaterial != null)
+                {
+                    r.sharedMaterial = cupMaterial;
+                }
+                else
+                {
+                    // Last-resort fallback; only works if URP Unlit survived
+                    // shader stripping. The assigned asset is the real fix.
+                    var sh = Shader.Find("Universal Render Pipeline/Unlit");
+                    if (sh != null) r.material = new Material(sh);
+                    r.material.color = new Color(0.15f, 0.9f, 0.35f);
+                }
+            }
 
             cup.AddComponent<CollectibleCup>();
         }
@@ -282,6 +301,17 @@ public class ArenaPlacer : MonoBehaviour
             {
                 float d = tornado.influenceRadius * 2f;
                 ring.localScale = new Vector3(d, ring.localScale.y, d);
+            }
+
+            // Scale the funnel with the influence radius. The prefab funnel is
+            // a fixed size, so at small radii it towered over its actual
+            // danger zone and read as far bigger than it was.
+            if (tornado.funnel != null)
+            {
+                float w = tornado.influenceRadius;          // diameter = radius
+                tornado.funnel.localScale = new Vector3(
+                    w, tornado.funnel.localScale.y, w);
+                tornado.RefreshFunnelBaseScale();
             }
         }
     }

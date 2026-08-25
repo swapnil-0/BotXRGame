@@ -363,7 +363,7 @@ public static class BotXRGameSetup
         var pm = Object.FindAnyObjectByType<ARPlaneManager>();
         if (pm != null) return pm.gameObject;
 
-        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+        foreach (var t in Object.FindObjectsByType<Transform>())
             if (t.name.Contains("XR Origin")) return t.gameObject;
         return null;
     }
@@ -373,12 +373,12 @@ public static class BotXRGameSetup
         // Prefer an explicit ray interactor; fall back to anything named like a
         // right-hand controller. Nothing here is guaranteed, hence the fallback
         // to a manual to-do item.
-        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+        foreach (var t in Object.FindObjectsByType<Transform>())
         {
             string n = t.name.ToLowerInvariant();
             if (n.Contains("ray interactor")) return t;
         }
-        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+        foreach (var t in Object.FindObjectsByType<Transform>())
         {
             string n = t.name.ToLowerInvariant();
             if (n.Contains("right") && (n.Contains("controller") || n.Contains("hand"))) return t;

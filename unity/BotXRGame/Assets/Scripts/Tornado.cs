@@ -71,9 +71,11 @@ public class Tornado : MonoBehaviour
     // for no net effect. Only a pull stronger than the ship's top speed makes
     // the centre a genuine trap - and once it is a trap, there has to be a way
     // out, or the run soft-locks.
-    [Tooltip("Ship is swallowed inside this fraction of the influence radius.")]
+    [Tooltip("Ship is swallowed inside this fraction of the influence radius. " +
+             "At 0.12 of a 0.5 m radius the core was a 6 cm target, small " +
+             "enough to orbit straight past without ever triggering.")]
     [Range(0f, 0.5f)]
-    public float captureRadiusFraction = 0.12f;
+    public float captureRadiusFraction = 0.22f;
     [Tooltip("Off = the ship simply cannot escape the core, with no reset.")]
     public bool captureEnabled = true;
 

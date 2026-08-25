@@ -72,25 +72,57 @@ public class ArenaRun : MonoBehaviour
     private Transform playAreaAnchor;
 
     [Header("Tornado Capture")]
-    [Tooltip("Seconds added to the clock when the vortex swallows the ship.")]
+    [Tooltip("How long the ship is held at the eye of the storm before being " +
+             "returned. An instant teleport is invisible; a visible hold reads " +
+             "as being eaten.")]
+    public float captureHoldSeconds = 3f;
+    [Tooltip("Spin rate while held, degrees per second.")]
+    public float captureSpinDegreesPerSecond = 540f;
+    [Tooltip("Seconds added to the clock. Cosmetic - there is no time limit.")]
     public float capturePenaltySeconds = 3f;
-    [Tooltip("Where to restart after capture. Off = back to the start line.")]
+    [Tooltip("Where to restart after capture. Off = leave it at the centre.")]
     public bool respawnAtStart = true;
 
     /// <summary>How many times the vortex has caught the ship this run.</summary>
     public int CaptureCount { get; private set; }
+    /// <summary>True while the ship is held at the eye of the storm.</summary>
+    public bool IsHeld { get; private set; }
 
     /// <summary>
     /// Called by the tornado when the ship reaches the inescapable core.
-    /// Without this the ship is simply stuck forever, since the pull there
-    /// exceeds the ship's top speed by design.
+    ///
+    /// An instant teleport was invisible - the ship simply reappeared at the
+    /// start with no explanation. Instead the ship is held at the eye of the
+    /// storm, spinning, with a visible countdown, and only then returned.
     /// </summary>
     public void HandleCapture()
     {
-        if (!IsRunning || ship == null) return;
+        if (!IsRunning || ship == null || IsHeld) return;
+        StartCoroutine(CaptureSequence());
+    }
 
+    private System.Collections.IEnumerator CaptureSequence()
+    {
+        IsHeld = true;
         CaptureCount++;
         ElapsedSeconds += capturePenaltySeconds;
+
+        // Freeze both the player's input and the vortex force, or the hold
+        // fights whatever is still pushing the ship around.
+        ship.MotionLocked = true;
+        ship.acceptExternalForces = false;
+
+        Vector3 hold = tornado != null ? tornado.transform.position : ship.transform.position;
+        hold.y = floorY + hoverHeight;
+
+        for (float t = captureHoldSeconds; t > 0f; t -= Time.deltaTime)
+        {
+            ship.transform.position = hold;
+            // Spin while held: makes "swallowed" legible without any new art.
+            ship.transform.Rotate(0f, captureSpinDegreesPerSecond * Time.deltaTime, 0f);
+            SetHud(string.Format("SWALLOWED\nreturning in {0:F1}s", t));
+            yield return null;
+        }
 
         if (respawnAtStart)
         {
@@ -99,7 +131,9 @@ public class ArenaRun : MonoBehaviour
             ship.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
         }
 
-        SetHud(string.Format("Swallowed!  +{0:F0}s penalty", capturePenaltySeconds));
+        ship.MotionLocked = false;
+        ship.acceptExternalForces = true;
+        IsHeld = false;
     }
 
     /// <summary>Called by ArenaPlacer once the arena is committed.</summary>
@@ -158,6 +192,10 @@ public class ArenaRun : MonoBehaviour
     void Update()
     {
         if (!IsRunning || ship == null) return;
+
+        // The capture sequence owns the ship's position and the HUD while it
+        // runs; letting Update continue would fight it every frame.
+        if (IsHeld) { ElapsedSeconds += Time.deltaTime; return; }
 
         ElapsedSeconds += Time.deltaTime;
 

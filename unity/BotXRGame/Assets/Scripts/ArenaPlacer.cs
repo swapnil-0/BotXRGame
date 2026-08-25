@@ -223,10 +223,13 @@ public class ArenaPlacer : MonoBehaviour
         // reach them, but standing at a cup is safe.
         Vector2[] layout =
         {
-            new Vector2(-0.28f, 0.14f),   // before the first band
-            new Vector2( 0.30f, 0.17f),   // before the first band, far side
-            new Vector2(-0.30f, 0.56f),   // the slot between the two bands
-            new Vector2( 0.26f, 0.90f),   // past the second band
+            // The slot between the two bands is narrower than the vortex
+            // radius, so no cup goes there - two before the first band, two
+            // after the second. The crossing itself is the challenge.
+            new Vector2(-0.28f, 0.14f),
+            new Vector2( 0.30f, 0.17f),
+            new Vector2(-0.28f, 0.88f),
+            new Vector2( 0.26f, 0.91f),
         };
 
         for (int i = 0; i < Mathf.Min(cupCount, layout.Length); i++)

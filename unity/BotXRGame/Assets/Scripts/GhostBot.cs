@@ -70,6 +70,23 @@ public class GhostBot : MonoBehaviour
         if (acceptExternalForces) externalAccum += velocity;
     }
 
+    /// <summary>
+    /// Clear all motion state. Must be called after any teleport.
+    ///
+    /// SmoothDamp keeps its own velocity in linearVel/angularVel. Teleporting
+    /// without clearing it means the ship resumes carrying whatever momentum it
+    /// had before, and lurches away from wherever it was just placed.
+    /// </summary>
+    public void ResetMotion()
+    {
+        LinearX = 0f;
+        AngularZ = 0f;
+        linearVel = 0f;
+        angularVel = 0f;
+        externalAccum = Vector3.zero;
+        ExternalVelocity = Vector3.zero;
+    }
+
     void Update()
     {
         float dt = Time.deltaTime;

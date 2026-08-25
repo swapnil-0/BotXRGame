@@ -135,6 +135,10 @@ public class ArenaRun : MonoBehaviour
             ship.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
         }
 
+        // Clear momentum before unlocking, or the ship lurches away from the
+        // start using whatever velocity it carried into the vortex.
+        ship.ResetMotion();
+
         ship.MotionLocked = false;
         ship.acceptExternalForces = true;
         IsHeld = false;
@@ -159,6 +163,7 @@ public class ArenaRun : MonoBehaviour
             ship.transform.position = new Vector3(origin.x, y + hover, origin.z);
             ship.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
             ship.acceptExternalForces = true;
+            ship.ResetMotion();
 
             if (overrideShipSpeed)
             {

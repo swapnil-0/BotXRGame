@@ -40,11 +40,12 @@ public class ArenaPlacer : MonoBehaviour
     public float hoverHeight = 0.04f;
 
     [Header("Tornado")]
-    [Tooltip("Influence radius as a fraction of arena size. 0.45 means the pull " +
-             "is felt across most of the crossing; lower values confine it to " +
-             "the middle and leave the approach uneventful.")]
+    [Tooltip("Influence radius as a fraction of arena size. This is a RADIUS, " +
+             "so 0.5 makes the vortex as wide as the whole arena and leaves " +
+             "nowhere safe. 0.30 gives a vortex covering about 60% of the " +
+             "width, with clear ground at the start and the finish.")]
     [Range(0.1f, 0.6f)]
-    public float tornadoRadiusFraction = 0.45f;
+    public float tornadoRadiusFraction = 0.30f;
     [Tooltip("Breathing period as a fraction of the target crossing time. " +
              "Near 1 means the player experiences roughly one gust per run.")]
     [Range(0.3f, 2f)]

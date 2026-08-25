@@ -35,9 +35,11 @@ public class Tornado : MonoBehaviour
     [Tooltip("Inward pull at dead centre, metres per second. This should be " +
              "several times the ship's speed or the core is not a threat.")]
     public float suckMetersPerSecond = 0.6f;
-    [Tooltip("Tangential push at dead centre, metres per second. Provides the " +
-             "sense of rotation; keep below suck or the ship just orbits.")]
-    public float swirlMetersPerSecond = 0.3f;
+    [Tooltip("Tangential push at dead centre, metres per second. Swirl and suck " +
+             "balance into a stable orbit: tangential force sustains a circular " +
+             "path while radial pull tries to close it. Keep it well under suck " +
+             "or the ship circles indefinitely instead of spiralling in.")]
+    public float swirlMetersPerSecond = 0.15f;
 
     [Header("Force - legacy, relative to ship speed")]
     [Tooltip("Use the multiples below instead of the absolute values above.")]

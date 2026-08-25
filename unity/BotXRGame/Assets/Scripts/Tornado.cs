@@ -26,22 +26,36 @@ public class Tornado : MonoBehaviour
     [Tooltip("Left empty, the first GhostBot in the scene is found automatically.")]
     public GhostBot bot;
 
-    [Header("Force")]
-    [Tooltip("Tangential push, m/s at full strength and dead centre.")]
-    public float swirlStrength = 0.8f;
-    [Tooltip("Inward pull, m/s at full strength and dead centre.")]
-    public float suckStrength = 0.3f;
-    [Tooltip("No effect beyond this radius. Roughly a third of the arena.")]
+    [Header("Force — expressed as a multiple of ship speed")]
+    // Absolute m/s values do not transfer between ship speeds. At 0.2 m/s a
+    // 0.85 m/s swirl is a fun shove; at 0.10 m/s the same number is eight times
+    // the player's authority and most starts become unwinnable. Scaling to ship
+    // speed keeps the game playable whatever the ship is tuned to.
+    [Tooltip("Tangential push at full strength and dead centre, as a multiple " +
+             "of ship speed. Around 0.9 is a strong but fair shove; above ~1.5 " +
+             "the player loses authority near the centre.")]
+    public float swirlSpeedMultiple = 0.9f;
+    [Tooltip("Inward pull, as a multiple of ship speed. Keep well below swirl - " +
+             "suck slows the ship without visibly moving it, which reads as " +
+             "broken controls rather than as weather.")]
+    public float suckSpeedMultiple = 0.4f;
+    [Tooltip("Fallback ship speed if the bot cannot be read.")]
+    public float assumedShipSpeed = 0.10f;
+    [Tooltip("No effect beyond this radius. About a third of a 3 ft arena. " +
+             "Larger forces a wider detour and a longer crossing.")]
     public float influenceRadius = 0.32f;
     [Tooltip("Clockwise when true.")]
     public bool clockwise = true;
 
     [Header("Breathing")]
-    [Tooltip("Seconds for a full weak-strong-weak cycle.")]
-    public float period = 7f;
+    [Tooltip("Seconds for a full weak-strong-weak cycle. Comparable to the " +
+             "crossing time, or the variation is never experienced.")]
+    public float period = 8f;
     [Range(0f, 1f)]
-    [Tooltip("Strength floor. 0 means it fully dies away between gusts.")]
-    public float minStrength = 0f;
+    [Tooltip("Strength floor. Above about 0.3 there is no free window, so " +
+             "standing still stops being a viable strategy and the player has " +
+             "to steer the whole way.")]
+    public float minStrength = 0.35f;
     [Tooltip("Phase offset, so multiple tornadoes are not synchronised.")]
     public float phaseOffset = 0f;
 
@@ -91,8 +105,13 @@ public class Tornado : MonoBehaviour
         Vector3 inward = -delta / d;
         Vector3 tangent = Vector3.Cross(Vector3.up, inward) * (clockwise ? 1f : -1f);
 
-        bot.AddExternalVelocity(inward * (suckStrength * s) +
-                                tangent * (swirlStrength * s));
+        // Scale to whatever the ship is currently capable of, so retuning the
+        // ship does not silently make the course unwinnable.
+        float shipSpeed = (bot.linearSpeed > 0.01f) ? bot.linearSpeed : assumedShipSpeed;
+        float swirl = swirlSpeedMultiple * shipSpeed;
+        float suck = suckSpeedMultiple * shipSpeed;
+
+        bot.AddExternalVelocity(inward * (suck * s) + tangent * (swirl * s));
     }
 
     private void UpdateVisuals()

@@ -27,10 +27,11 @@ public class ArenaRun : MonoBehaviour
     public bool clampToArena = true;
 
     [Header("Ship Tuning")]
-    [Tooltip("Applied on Begin. At 0.6 m/s a 3 ft crossing takes 1.5 s, which " +
-             "is too short for a breathing tornado to matter. 0.2 m/s gives " +
-             "about 4.6 s and makes the lulls worth waiting for.")]
-    public float runSpeed = 0.20f;
+    [Tooltip("Applied on Begin. 0.10 m/s gives a 9.1 s clean line across 3 ft; " +
+             "steering around the tornado stretches it to roughly 10-11 s. " +
+             "At 0.6 m/s the crossing takes 1.5 s, far too short for a " +
+             "breathing tornado to be felt at all.")]
+    public float runSpeed = 0.10f;
     public bool overrideShipSpeed = true;
 
     public bool IsRunning { get; private set; }

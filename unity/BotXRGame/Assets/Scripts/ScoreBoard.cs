@@ -156,8 +156,18 @@ public class ScoreBoard : MonoBehaviour
         // ~0 the vortex is not involved and the cause is steering, and if it
         // is large the pull is real but not being communicated.
         float ext = ship.ExternalVelocity.magnitude;
+
+        // cmd vs applied yaw rate. With the stick centred both should read
+        // 0.000; an applied rate that lingers while cmd is zero is heading
+        // drift being integrated frame after frame, and hdg is the total
+        // error it has accumulated so far.
+        float hdg = Vector3.SignedAngle(
+            Vector3.forward, ship.transform.forward, Vector3.up);
+
         sb.AppendFormat("ship {0:F2},{1:F2}  ext {2:F2}  [{3}] x{4}\n",
             c.x, c.z, ext, ship.gameObject.name, shipCount);
+        sb.AppendFormat("hdg {0:F0}  cmd {1:F3}  applied {2:F3} rad/s\n",
+            hdg, ship.CommandedAngularZ, ship.AppliedAngularRate);
 
         if (CollectibleCup.Active.Count == 0)
         {

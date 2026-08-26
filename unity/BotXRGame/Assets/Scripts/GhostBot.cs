@@ -55,6 +55,38 @@ public class GhostBot : MonoBehaviour
     /// <summary>World-space drift applied this frame, for HUD feedback.</summary>
     public Vector3 ExternalVelocity { get; private set; }
 
+    /// <summary>
+    /// The SMOOTHED yaw rate actually being applied, rad/s - as opposed to
+    /// AngularZ, which is what the stick asked for.
+    ///
+    /// Exposed to tell apart the two ways heading can drift while the stick is
+    /// centred: a residual here means the smoothing never settles to zero, and
+    /// a zero here while the heading still moves means something outside this
+    /// script is rotating the ship.
+    /// </summary>
+    public float AppliedAngularRate { get; private set; }
+
+    /// <summary>What the stick asked for this frame, rad/s, before smoothing.</summary>
+    public float CommandedAngularZ { get; private set; }
+
+    [Header("Drift Suppression")]
+    [Tooltip("Below this applied yaw rate (rad/s) with the stick centred, snap " +
+             "to exactly zero. SmoothDamp never actually reaches its target, " +
+             "and an unsnapped residual is integrated into heading every frame.")]
+    public float angularDeadband = 0.02f;
+
+    [Tooltip("Same idea for forward speed, m/s. Less damaging than the angular " +
+             "case - position is bounded by the arena clamp, heading is not.")]
+    public float linearDeadband = 0.01f;
+
+    [Tooltip("Cross-axis suppression. An axis under this fraction of the other " +
+             "reads as zero, so a near-pure forward push does not carry a small " +
+             "constant turn. 0.25 allows deliberate diagonals while killing a " +
+             "14-degree lean.\n\n" +
+             "New field, so the code default actually applies.")]
+    [Range(0f, 0.6f)]
+    public float axisDeadzone = 0.25f;
+
     private Vector3 externalAccum;
     private float linearVel, angularVel;   // SmoothDamp state
 
@@ -149,6 +181,21 @@ public class GhostBot : MonoBehaviour
             stick = moveAction.action.ReadValue<Vector2>();
         if (stick.magnitude < deadzone) stick = Vector2.zero;
 
+        // Per-axis deadzone as well as the magnitude one above.
+        //
+        // The magnitude test alone cannot catch the case that matters here:
+        // holding full forward with the stick a few degrees off-axis gives
+        // (0.08, 1.0), whose magnitude is 1.0, so the 0.08 passes straight
+        // through and becomes a constant turn command for as long as forward is
+        // held. The ship curves, keeps curving, and the heading error grows the
+        // longer you play - which is exactly "it goes where I want at first and
+        // drifts away during play".
+        //
+        // Scaled by how hard the other axis is pushed, so a deliberate diagonal
+        // still works: the suppression only applies near a pure axis push.
+        if (Mathf.Abs(stick.x) < axisDeadzone * Mathf.Abs(stick.y)) stick.x = 0f;
+        if (Mathf.Abs(stick.y) < axisDeadzone * Mathf.Abs(stick.x)) stick.y = 0f;
+
         // Same mapping RobotController uses, so the ghost and the real robot
         // respond identically to the same stick position.
         float targetLinear = stick.y * linearSpeed;
@@ -168,6 +215,29 @@ public class GhostBot : MonoBehaviour
         AngularZ = turnAccelerationTime > 0.001f
             ? Mathf.SmoothDamp(AngularZ, targetAngular, ref angularVel, turnAccelerationTime)
             : targetAngular;
+
+        // SmoothDamp approaches its target asymptotically and NEVER reaches it.
+        // Released stick therefore leaves AngularZ at some small residual - and
+        // the line below integrates that into the heading every frame, forever.
+        // Heading error accumulates linearly and never self-corrects: fine for
+        // the first seconds, badly off after a minute. That is the "ship starts
+        // going where I point it and drifts away during play" report.
+        //
+        // Position error would at least be bounded by the arena clamp; heading
+        // has nothing to bound it, which is why this shows up as steering.
+        if (Mathf.Abs(targetAngular) < 1e-4f && Mathf.Abs(AngularZ) < angularDeadband)
+        {
+            AngularZ = 0f;
+            angularVel = 0f;
+        }
+        if (Mathf.Abs(targetLinear) < 1e-4f && Mathf.Abs(LinearX) < linearDeadband)
+        {
+            LinearX = 0f;
+            linearVel = 0f;
+        }
+
+        CommandedAngularZ = targetAngular;
+        AppliedAngularRate = AngularZ;
 
         // Yaw first, then translate along the new heading - this is the same
         // integration order bot_sim uses, so the two stay in agreement.

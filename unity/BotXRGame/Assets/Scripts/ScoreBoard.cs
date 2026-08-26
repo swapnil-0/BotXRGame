@@ -94,6 +94,19 @@ public class ScoreBoard : MonoBehaviour
         if (t != null) tornado = t;
     }
 
+    /// <summary>
+    /// Told by ArenaPlacer which GhostBot is the player's ship.
+    ///
+    /// FindAnyObjectByType cannot be trusted for this: the real ship is
+    /// deactivated during placement and gets skipped, so the board latched
+    /// onto a different, stationary GhostBot and reported ship 0.25,0.85 for
+    /// an entire run while the visible ship flew around the arena.
+    /// </summary>
+    public void WatchShip(GhostBot s)
+    {
+        if (s != null) ship = s;
+    }
+
     private readonly System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
 
     /// <summary>
@@ -104,7 +117,7 @@ public class ScoreBoard : MonoBehaviour
     private string BuildDebug()
     {
         if (tornado == null) tornado = FindAnyObjectByType<Tornado>();
-        if (ship == null) ship = FindAnyObjectByType<GhostBot>();
+        if (ship == null) ship = CollectibleCup.Ship;
 
         sb.Length = 0;
 
@@ -130,9 +143,12 @@ public class ScoreBoard : MonoBehaviour
             return sb.ToString();
         }
 
+        // Name and scene count included deliberately: a GhostBot count above 1
+        // is what let the board silently report a decoy ship for a whole run.
+        int shipCount = FindObjectsByType<GhostBot>(FindObjectsSortMode.None).Length;
         Vector3 c = ship.Center;
-        sb.AppendFormat("ship {0:F2},{1:F2}  pivot {2:F2}\n",
-            c.x, c.z, ship.CenterOffset.magnitude);
+        sb.AppendFormat("ship {0:F2},{1:F2}  pivot {2:F2}  [{3}] x{4}\n",
+            c.x, c.z, ship.CenterOffset.magnitude, ship.gameObject.name, shipCount);
 
         if (CollectibleCup.Active.Count == 0)
         {

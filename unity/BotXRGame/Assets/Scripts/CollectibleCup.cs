@@ -18,6 +18,25 @@ public class CollectibleCup : MonoBehaviour
     public static bool ShipFound { get; private set; }
 
     /// <summary>
+    /// The ship cups measure against, set explicitly by ArenaPlacer.
+    ///
+    /// Do not go back to FindAnyObjectByType here. The real ship is
+    /// DEACTIVATED during arena placement and that call skips inactive
+    /// objects, so it silently returned a different GhostBot from the scene -
+    /// one that never moves. Cups then measured to a stationary decoy and
+    /// could never be collected.
+    /// </summary>
+    public static GhostBot Ship { get; private set; }
+
+    public static void SetShip(GhostBot bot)
+    {
+        Ship = bot;
+        ShipFound = bot != null;
+        Debug.LogFormat("[Cup] ship set to {0}",
+            bot == null ? "NULL" : bot.gameObject.name);
+    }
+
+    /// <summary>
     /// Planar distance from a point to the nearest uncollected cup, computed on
     /// demand. Done as one query rather than each cup writing to a shared
     /// static, which raced depending on script execution order.
@@ -60,15 +79,12 @@ public class CollectibleCup : MonoBehaviour
     {
         if (collected) return;
 
-        // Re-acquire every frame until found. The ship is deactivated during
-        // arena selection, and FindAnyObjectByType skips inactive objects - so
-        // a single lookup in Start can silently come back null forever.
-        if (ship == null)
-        {
-            ship = FindAnyObjectByType<GhostBot>();
-            ShipFound = ship != null;
-            if (ship == null) return;
-        }
+        // Registered by ArenaPlacer. No FindAnyObjectByType fallback: it
+        // returned the wrong (always-active, never-moving) GhostBot, and a
+        // wrong answer here is far worse than no answer, because it looks
+        // like working code that simply never collects.
+        ship = Ship;
+        if (ship == null) return;
 
         // Center, not transform.position - the ship model's pivot is ~0.6 m
         // clear of its own geometry, which is why driving visually over a cup

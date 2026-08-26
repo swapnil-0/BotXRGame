@@ -370,6 +370,24 @@ public class ArenaPlacer : MonoBehaviour
     {
         CollectibleCup.ResetAll();
 
+        // Tell the cups and the board which GhostBot is the real one. Both
+        // used to find it themselves and both found the wrong one.
+        var playerShip = ship != null ? ship.GetComponent<GhostBot>() : null;
+        CollectibleCup.SetShip(playerShip);
+
+        var scoreBoard = FindAnyObjectByType<ScoreBoard>();
+        if (scoreBoard != null) scoreBoard.WatchShip(playerShip);
+
+        int ghostBots = FindObjectsByType<GhostBot>(FindObjectsSortMode.None).Length;
+        if (ghostBots > 1)
+        {
+            Debug.LogWarningFormat(
+                "[Arena] {0} GhostBots in the scene. Only '{1}' is the player's; " +
+                "the others are decoys that anything using FindAnyObjectByType will " +
+                "pick up instead.",
+                ghostBots, playerShip == null ? "NULL" : playerShip.gameObject.name);
+        }
+
         // Fixed fractional layout, chosen so every cup sits in a gap between
         // the tornado sweep bands. The patrols run at 0.38 and 0.68 of the
         // course with a radius of 0.16 x arena, so their danger bands span
@@ -466,6 +484,13 @@ public class ArenaPlacer : MonoBehaviour
 
             if (ship != null) tornado.bot = ship.GetComponent<GhostBot>();
             tornado.influenceRadius = arenaSize * twinTornadoRadiusFraction;
+
+            // The board keeps reporting 0.10 where this computes 0.146, so log
+            // both the inputs and the value actually written. If the readout
+            // still disagrees with this line, something resets it after spawn.
+            Debug.LogFormat(
+                "[Tornado] {0}: arena {1:F3} x frac {2:F3} = influenceRadius {3:F3}",
+                t.name, arenaSize, twinTornadoRadiusFraction, tornado.influenceRadius);
             tornado.InitPatrol(arenaRight,
                                arenaSize * tornadoPatrolFraction,
                                periods[i], phases[i]);

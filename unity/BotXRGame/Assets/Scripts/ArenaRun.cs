@@ -52,6 +52,10 @@ public class ArenaRun : MonoBehaviour
     public AudioSource audioSource;
     public AudioClip finishClip;
 
+    [Header("Score Board")]
+    [Tooltip("Optional world-space board past the finish. Found automatically.")]
+    public ScoreBoard scoreBoard;
+
     [Header("Debug")]
     [Tooltip("Show live tornado numbers on the HUD. Turn off for demos.")]
     public bool showTelemetry = true;
@@ -216,6 +220,11 @@ public class ArenaRun : MonoBehaviour
                 ship.playAreaSize = new Vector2(clamped, clamped);
             }
         }
+
+        // Place the board once the course geometry is known - it cannot exist
+        // at a sensible location before the player picks an arena.
+        if (scoreBoard == null) scoreBoard = FindAnyObjectByType<ScoreBoard>();
+        if (scoreBoard != null) scoreBoard.Place(finishPoint, forward, floorY);
 
         ElapsedSeconds = 0f;
         IsRunning = true;

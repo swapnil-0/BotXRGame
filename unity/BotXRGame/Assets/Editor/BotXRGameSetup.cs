@@ -221,6 +221,102 @@ public static class BotXRGameSetup
         return prefab;
     }
 
+    // ============================================================ score board
+
+    [MenuItem("Tools/BotXRGame/Build Score Board", false, 15)]
+    public static void BuildScoreBoard()
+    {
+        // Its own canvas, separate from the HUD: different lifetime, different
+        // positioning, and it must not fight the HUD for screen space.
+        GameObject root = GameObject.Find("ScoreCanvas");
+        if (root == null)
+        {
+            root = new GameObject("ScoreCanvas");
+            Undo.RegisterCreatedObjectUndo(root, "Create ScoreCanvas");
+        }
+
+        var canvas = GetOrAdd<Canvas>(root);
+        canvas.renderMode = RenderMode.WorldSpace;
+        GetOrAdd<UnityEngine.UI.CanvasScaler>(root);
+        GetOrAdd<UnityEngine.UI.GraphicRaycaster>(root);
+
+        var rt = root.GetComponent<RectTransform>();
+        // 0.9 m x 0.5 m board: readable from a few metres, small enough not to
+        // dominate a 6 ft arena.
+        rt.sizeDelta = new Vector2(900f, 500f);
+        rt.localScale = Vector3.one * 0.001f;
+
+        var bg = FindOrCreateUiChild(rt, "Background");
+        var img = GetOrAdd<UnityEngine.UI.Image>(bg);
+        img.color = new Color(0.05f, 0.07f, 0.10f, 0.72f);
+        Stretch(bg.GetComponent<RectTransform>());
+
+        var headline = MakeText(rt, "Headline", 96, TMPro.TextAlignmentOptions.Center,
+                                new Vector2(0f, 150f), new Vector2(860f, 170f));
+        var body = MakeText(rt, "Body", 52, TMPro.TextAlignmentOptions.Center,
+                            new Vector2(0f, 10f), new Vector2(860f, 160f));
+        var dbg = MakeText(rt, "Debug", 34, TMPro.TextAlignmentOptions.Center,
+                           new Vector2(0f, -160f), new Vector2(860f, 150f));
+        dbg.color = new Color(0.65f, 0.75f, 0.85f);
+
+        var board = GetOrAdd<ScoreBoard>(root);
+        Wire(board, new Dictionary<string, Object>
+        {
+            { "boardRoot", root.transform },
+            { "headlineText", headline },
+            { "bodyText", body },
+            { "debugText", dbg },
+        });
+
+        var run = Object.FindAnyObjectByType<ArenaRun>();
+        if (run != null)
+            Wire(run, new Dictionary<string, Object> { { "scoreBoard", board } });
+
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log("[BotXRGame] Score board built and wired to ArenaRun.");
+        EditorUtility.DisplayDialog("BotXRGame",
+            "Score board created.\n\nIt is positioned automatically when the " +
+            "arena is placed, and stays hidden until then.", "OK");
+    }
+
+    private static GameObject FindOrCreateUiChild(RectTransform parent, string name)
+    {
+        var existing = parent.Find(name);
+        if (existing != null) return existing.gameObject;
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        Undo.RegisterCreatedObjectUndo(go, "Create " + name);
+        return go;
+    }
+
+    private static void Stretch(RectTransform r)
+    {
+        r.anchorMin = Vector2.zero;
+        r.anchorMax = Vector2.one;
+        r.offsetMin = Vector2.zero;
+        r.offsetMax = Vector2.zero;
+    }
+
+    private static TMPro.TextMeshProUGUI MakeText(
+        RectTransform parent, string name, float size,
+        TMPro.TextAlignmentOptions align, Vector2 pos, Vector2 sizeDelta)
+    {
+        var go = FindOrCreateUiChild(parent, name);
+        var t = GetOrAdd<TMPro.TextMeshProUGUI>(go);
+        t.fontSize = size;
+        t.alignment = align;
+        t.color = Color.white;
+        // Explicit newlines carry the layout, so wrapping only mangles it.
+        t.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+        t.overflowMode = TMPro.TextOverflowModes.Overflow;
+        t.text = name;
+
+        var r = go.GetComponent<RectTransform>();
+        r.anchoredPosition = pos;
+        r.sizeDelta = sizeDelta;
+        return t;
+    }
+
     // ======================================================= fit ship to size
 
     [MenuItem("Tools/BotXRGame/Fit Ship To Length", false, 20)]

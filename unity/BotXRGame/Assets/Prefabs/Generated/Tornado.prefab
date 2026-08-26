@@ -47,8 +47,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tornado
   bot: {fileID: 0}
-  suckMetersPerSecond: 0.9
-  swirlMetersPerSecond: 0.15
+  suckMetersPerSecond: 1.2
+  swirlMetersPerSecond: 0.25
   useSpeedMultiples: 0
   swirlSpeedMultiple: 0.6
   suckSpeedMultiple: 2.5

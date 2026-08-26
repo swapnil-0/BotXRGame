@@ -374,7 +374,16 @@ public class ArenaPlacer : MonoBehaviour
             }
 
             cup.AddComponent<CollectibleCup>();
+
+            // Logged so the spawn position can be compared against what the
+            // board reports live - if they differ, something is moving cups
+            // after spawn; if the board shows an extra one, it predates us.
+            Debug.LogFormat("[Cup] spawned {0} at {1:F2},{2:F2}",
+                cup.name, cup.transform.position.x, cup.transform.position.z);
         }
+
+        Debug.LogFormat("[Cup] spawn complete: {0} requested, {1} live, arena {2:F2} m",
+            EffectiveCupCount, CollectibleCup.Active.Count, arenaSize);
     }
 
     private void SpawnTornadoes()
@@ -408,6 +417,14 @@ public class ArenaPlacer : MonoBehaviour
                                periods[i], phases[i]);
 
             if (run != null) tornado.OnCaptured += run.HandleCapture;
+
+            // Point the board at a tornado we KNOW came from here, rather than
+            // letting it grab an arbitrary one out of the scene.
+            if (i == 0)
+            {
+                var board = FindAnyObjectByType<ScoreBoard>();
+                if (board != null) board.WatchTornado(tornado);
+            }
 
             var ring = tornado.radiusRing;
             if (ring != null)

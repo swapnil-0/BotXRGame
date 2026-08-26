@@ -80,6 +80,80 @@ public class ScoreBoard : MonoBehaviour
         placed = true;
     }
 
+    /// <summary>
+    /// Called by ArenaPlacer with a tornado it actually spawned.
+    ///
+    /// Without this the board picks a tornado with FindAnyObjectByType, which
+    /// returns whichever one Unity happens to hit first - including a template
+    /// left in the scene by the Editor builder. That is almost certainly why
+    /// the readout showed influenceRadius 0.10 (the prefab default) instead of
+    /// the arena-derived value the placer assigns.
+    /// </summary>
+    public void WatchTornado(Tornado t)
+    {
+        if (t != null) tornado = t;
+    }
+
+    private readonly System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
+
+    /// <summary>
+    /// Absolute world XZ for the ship and every live cup, so a stale object
+    /// left over from edit time is obvious: it will sit at a coordinate
+    /// nowhere near the arena, often (0.00, 0.00).
+    /// </summary>
+    private string BuildDebug()
+    {
+        if (tornado == null) tornado = FindAnyObjectByType<Tornado>();
+        if (ship == null) ship = FindAnyObjectByType<GhostBot>();
+
+        sb.Length = 0;
+
+        // Tornado count matters: more than one per expected spawn means there
+        // is a spare in the scene and the numbers above may describe it.
+        int tornadoCount = FindObjectsByType<Tornado>(FindObjectsSortMode.None).Length;
+
+        if (tornado == null)
+        {
+            sb.Append("no tornado\n");
+        }
+        else
+        {
+            Vector3 tp = tornado.transform.position;
+            sb.AppendFormat("{0} d {1:F2}/{2:F2} pull {3:F2}   torn x{4} @ {5:F2},{6:F2}\n",
+                tornado.State, tornado.LastDistance, tornado.influenceRadius,
+                tornado.LastPull, tornadoCount, tp.x, tp.z);
+        }
+
+        if (ship == null)
+        {
+            sb.Append("SHIP NOT FOUND");
+            return sb.ToString();
+        }
+
+        Vector3 c = ship.Center;
+        sb.AppendFormat("ship {0:F2},{1:F2}  pivot {2:F2}\n",
+            c.x, c.z, ship.CenterOffset.magnitude);
+
+        if (CollectibleCup.Active.Count == 0)
+        {
+            sb.Append("no live cups");
+            return sb.ToString();
+        }
+
+        int i = 1;
+        foreach (var cup in CollectibleCup.Active)
+        {
+            if (cup == null) continue;
+            Vector3 p = cup.transform.position;
+            Vector3 d = p - c;
+            d.y = 0f;
+            sb.AppendFormat("cup{0} {1:F2},{2:F2}  d {3:F2} (need <{4:F2})\n",
+                i++, p.x, p.z, d.magnitude, cupRadiusForDisplay);
+        }
+
+        return sb.ToString();
+    }
+
     void Update()
     {
         if (run == null) run = FindAnyObjectByType<ArenaRun>();
@@ -109,39 +183,7 @@ public class ScoreBoard : MonoBehaviour
         if (debugText != null)
         {
             if (!showDebug) { debugText.text = ""; return; }
-
-            if (tornado == null) tornado = FindAnyObjectByType<Tornado>();
-            if (ship == null) ship = FindAnyObjectByType<GhostBot>();
-
-            string t = tornado == null
-                ? "no tornado"
-                : string.Format("{0} d {1:F2}/{2:F2} pull {3:F2}",
-                    tornado.State, tornado.LastDistance, tornado.influenceRadius,
-                    tornado.LastPull);
-
-            // Cup diagnostics: distinguishes "never spawned" from "spawned in
-            // the wrong place" from "ship reference is null", which all look
-            // identical from inside the headset.
-            string cups;
-            if (ship == null)
-            {
-                cups = "cups: NO SHIP";
-            }
-            else
-            {
-                float near = CollectibleCup.NearestDistanceTo(ship.Center);
-                // pivot = gap between the ship's origin and its visible middle.
-                // Should be a constant non-zero number; if it reads 0.00 the
-                // renderer scan found nothing and every distance below is
-                // measuring the wrong point again.
-                cups = string.Format("cups active {0}  nearest {1}  need <{2:F2}  pivot {3:F2}",
-                    CollectibleCup.Remaining,
-                    float.IsInfinity(near) ? "--" : near.ToString("F2"),
-                    cupRadiusForDisplay,
-                    ship.CenterOffset.magnitude);
-            }
-
-            debugText.text = t + "\n" + cups;
+            debugText.text = BuildDebug();
         }
     }
 }

@@ -42,8 +42,10 @@ public class ScoreBoard : MonoBehaviour
     private ArenaRun run;
     private Tornado tornado;
     private GhostBot ship;
-    [Tooltip("Shown in the debug line for comparison against nearest cup.")]
-    public float cupRadiusForDisplay = 0.28f;
+    [Tooltip("Fallback only. The live value is read from an actual cup, so " +
+             "this cannot drift out of sync with the real collect radius the " +
+             "way a hardcoded 0.28 did.")]
+    public float cupRadiusForDisplay = 0.13f;
     private bool placed;
 
     void Awake()
@@ -147,8 +149,15 @@ public class ScoreBoard : MonoBehaviour
         // is what let the board silently report a decoy ship for a whole run.
         int shipCount = FindObjectsByType<GhostBot>(FindObjectsSortMode.None).Length;
         Vector3 c = ship.Center;
-        sb.AppendFormat("ship {0:F2},{1:F2}  pivot {2:F2}  [{3}] x{4}\n",
-            c.x, c.z, ship.CenterOffset.magnitude, ship.gameObject.name, shipCount);
+
+        // ext = world-space velocity being applied by something OTHER than the
+        // stick. Added because "the ship stopped going where I pointed it and
+        // it did not feel like the tornado" is unanswerable by eye: if ext is
+        // ~0 the vortex is not involved and the cause is steering, and if it
+        // is large the pull is real but not being communicated.
+        float ext = ship.ExternalVelocity.magnitude;
+        sb.AppendFormat("ship {0:F2},{1:F2}  ext {2:F2}  [{3}] x{4}\n",
+            c.x, c.z, ext, ship.gameObject.name, shipCount);
 
         if (CollectibleCup.Active.Count == 0)
         {
@@ -164,7 +173,7 @@ public class ScoreBoard : MonoBehaviour
             Vector3 d = p - c;
             d.y = 0f;
             sb.AppendFormat("cup{0} {1:F2},{2:F2}  d {3:F2} (need <{4:F2})\n",
-                i++, p.x, p.z, d.magnitude, cupRadiusForDisplay);
+                i++, p.x, p.z, d.magnitude, cup.collectRadius);
         }
 
         return sb.ToString();

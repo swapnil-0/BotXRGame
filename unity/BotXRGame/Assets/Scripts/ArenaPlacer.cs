@@ -88,6 +88,14 @@ public class ArenaPlacer : MonoBehaviour
     public int cupCount = 4;
     [Tooltip("Cup visual height, metres.")]
     public float cupHeight = 0.10f;
+    [Tooltip("How close the ship's centre must get to collect a cup.\n\n" +
+             "0.28 was set back when cups were measuring against the wrong " +
+             "object and never collecting - it was compensation for a bug that " +
+             "has since been fixed, and on a 3 ft arena it covered 30% of the " +
+             "width, so cups fell in from a long way off. Now that distances " +
+             "are measured correctly this can be what it should always have " +
+             "been: roughly the ship's own footprint.")]
+    public float cupCollectRadius = 0.13f;
     [Tooltip("Number of patrolling tornadoes across the course.")]
     public int tornadoCount = 2;
     [Tooltip("Twin-tornado influence radius as a fraction of arena size. " +
@@ -481,7 +489,8 @@ public class ArenaPlacer : MonoBehaviour
                 }
             }
 
-            cup.AddComponent<CollectibleCup>();
+            var cc = cup.AddComponent<CollectibleCup>();
+            cc.collectRadius = cupCollectRadius;
 
             // Logged so the spawn position can be compared against what the
             // board reports live - if they differ, something is moving cups

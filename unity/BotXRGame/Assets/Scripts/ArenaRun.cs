@@ -48,6 +48,16 @@ public class ArenaRun : MonoBehaviour
              "this back to 1.")]
     public float speedMultiplier = 1.5f;
 
+    [Tooltip("Scales the derived turn rate. Kept equal to speedMultiplier by " +
+             "default and for a reason: raising speed alone leaves the turn " +
+             "RATE unchanged while the ship covers more ground per turn, so " +
+             "the turning radius grows by the same proportion. That reads as " +
+             "'the ship will not go where I point it', which is what happened " +
+             "when speed went up 50% on its own.\n\n" +
+             "New field, so Unity has never serialized it and the code default " +
+             "actually applies.")]
+    public float turnSpeedMultiplier = 1.5f;
+
     [Header("Finish")]
     [Tooltip("Clamp margin as a fraction of arena size. The finish sits on the " +
              "far edge, so a tight clamp fights the player at the goal.")]
@@ -204,7 +214,8 @@ public class ArenaRun : MonoBehaviour
                 // Scale turn rate too. Leaving it at the default made the ship
                 // spin far faster than it translated, which is most of what
                 // read as "too fast".
-                ship.angularSpeed = Mathf.PI / Mathf.Max(targetTurnSeconds, 0.2f);
+                ship.angularSpeed = Mathf.PI / Mathf.Max(targetTurnSeconds, 0.2f)
+                                    * turnSpeedMultiplier;
             }
 
             // ArenaPlacer already constrains placement to clear floor, so the

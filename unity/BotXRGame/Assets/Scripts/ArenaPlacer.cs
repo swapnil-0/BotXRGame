@@ -329,6 +329,11 @@ public class ArenaPlacer : MonoBehaviour
              "and the visible mesh have come apart. Turn off for demos.")]
     public bool showCenterMarker = true;
 
+    [Tooltip("Pin the ship's mesh to its root so it cannot drift away from " +
+             "the position the game is actually using. Turn off once the " +
+             "second mover has been found and removed.")]
+    public bool lockShipVisual = true;
+
     /// <summary>
     /// Nudge a cup slot away from the ship's start position.
     ///
@@ -386,6 +391,15 @@ public class ArenaPlacer : MonoBehaviour
         // Draws where the game thinks the ship is, so the next screenshot
         // answers the question outright instead of inviting another theory.
         if (showCenterMarker) CenterMarker.Create(playerShip, cupMaterial);
+
+        // The marker showed the root moving correctly while the mesh drifted
+        // off it, so pin the mesh to the root. Added at runtime rather than in
+        // the scene so it travels with the fix rather than needing wiring.
+        if (lockShipVisual && playerShip != null
+            && playerShip.GetComponent<ShipVisualLock>() == null)
+        {
+            playerShip.gameObject.AddComponent<ShipVisualLock>();
+        }
 
         int ghostBots = FindObjectsByType<GhostBot>(FindObjectsSortMode.None).Length;
         if (ghostBots > 1)

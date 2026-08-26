@@ -1934,6 +1934,13 @@ MonoBehaviour:
   rayOrigin: {fileID: 23723604}
   placeAction: {fileID: 7904272356298805229, guid: c348712bda248c246b8c49b3db54643f, type: 3}
   pressThreshold: 0.5
+  arenaSizeOptionsFeet:
+  - 3
+  - 5
+  - 7
+  - 8
+  - 9
+  defaultSizeIndex: 0
   arenaSize: 1.8288
   hoverHeight: 0.04
   tornadoRadiusFraction: 0.3
@@ -1954,9 +1961,12 @@ MonoBehaviour:
   cupCount: 4
   cupHeight: 0.1
   tornadoCount: 2
-  twinTornadoRadiusFraction: 0.11
+  twinTornadoRadiusFraction: 0.16
   tornadoPatrolFraction: 0.28
   cupMaterial: {fileID: 2100000, guid: 8679535c100bd2f46af18d7bf2ee30ac, type: 2}
+  scaleDensityWithArena: 1
+  shipStartClearance: 0.45
+  showCenterMarker: 1
 --- !u!114 &861330930
 MonoBehaviour:
   m_ObjectHideFlags: 0

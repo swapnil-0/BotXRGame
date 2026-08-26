@@ -25,14 +25,21 @@ public class ShipVisualLock : MonoBehaviour
              "animation you want to keep - the root already supplies heading.")]
     public bool lockRotation;
 
-    [Tooltip("Log once when drift first exceeds this many metres, naming the " +
-             "transform, so the second mover can be tracked down.")]
+    [Tooltip("Report once CUMULATIVE drift exceeds this many metres.\n\n" +
+             "Must be cumulative, not instantaneous: this component resets the " +
+             "mesh every frame, so any single frame's drift is one frame's " +
+             "worth and an instantaneous threshold can never trip. The first " +
+             "version of this check tested instantaneous drift and therefore " +
+             "reported nothing whether or not a second mover existed.")]
     public float reportDriftOver = 0.05f;
 
     private Vector3 basePos;
     private Quaternion baseRot;
     private bool captured;
     private bool reported;
+    private float cumulativeDrift;
+    private float peakFrameDrift;
+    private int driftFrames;
 
     void Start()
     {
@@ -64,17 +71,24 @@ public class ShipVisualLock : MonoBehaviour
     {
         if (!captured || visual == null) return;
 
-        if (!reported)
+        float drift = (visual.localPosition - basePos).magnitude;
+
+        if (drift > 1e-5f)
         {
-            float drift = (visual.localPosition - basePos).magnitude;
-            if (drift > reportDriftOver)
+            cumulativeDrift += drift;
+            peakFrameDrift = Mathf.Max(peakFrameDrift, drift);
+            driftFrames++;
+
+            if (!reported && cumulativeDrift > reportDriftOver)
             {
                 reported = true;
                 Debug.LogWarningFormat(
-                    "[ShipVisualLock] '{0}' drifted {1:F3} m in local space " +
-                    "(now {2}, expected {3}). Something is moving the mesh as well " +
-                    "as the root - find it and this component can be removed.",
-                    visual.name, drift, visual.localPosition, basePos);
+                    "[ShipVisualLock] '{0}' is being moved by something else. " +
+                    "Cumulative {1:F3} m over {2} frames, peak {3:F4} m/frame " +
+                    "(~{4:F2} m/s of unwanted motion). Find that mover and this " +
+                    "component can be removed.",
+                    visual.name, cumulativeDrift, driftFrames, peakFrameDrift,
+                    peakFrameDrift / Mathf.Max(Time.deltaTime, 1e-4f));
             }
         }
 

@@ -19,12 +19,16 @@ export MSYS_NO_PATHCONV=1
 
 PATTERN="${1:-}"
 if [ "$PATTERN" = "game" ]; then
-    # Any [Tag] rather than a hand-listed set. The explicit list silently hid
-    # every [ShipVisualLock] line - including the one naming the transform we
-    # were trying to identify - and a filter that quietly drops the evidence
-    # you are hunting for is worse than no filter.
+    # Any [Tag] rather than a hand-listed set, so a new tag is never silently
+    # dropped - an earlier explicit list hid every [ShipVisualLock] line,
+    # including the one naming the transform we were hunting.
     PATTERN='\[[A-Za-z]+\]|Exception|error CS'
 fi
+
+# ...but Unity's OpenXR startup dump is also bracket-tagged, and it is ~150
+# lines of extension names that bury the handful that matter. Dropped by tag,
+# not by content, so a real [XR] error still needs the unfiltered view.
+EXCLUDE='\[XR\]'
 
 if ! command -v adb >/dev/null 2>&1; then
     echo "adb not found on PATH." >&2
@@ -45,7 +49,9 @@ while true; do
     echo "--- connected $(date +%H:%M:%S) ---"
 
     if [ -n "$PATTERN" ]; then
-        adb logcat -s Unity:V | grep --line-buffered -E "$PATTERN"
+        adb logcat -s Unity:V \
+            | grep --line-buffered -vE "$EXCLUDE" \
+            | grep --line-buffered -E "$PATTERN"
     else
         adb logcat -s Unity:V
     fi

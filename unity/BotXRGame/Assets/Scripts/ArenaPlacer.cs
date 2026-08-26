@@ -324,6 +324,11 @@ public class ArenaPlacer : MonoBehaviour
              "on the first frame and the run begins already scored.")]
     public float shipStartClearance = 0.45f;
 
+    [Tooltip("Debug: draw a marker at the position the game believes the ship " +
+             "occupies. If it does not sit on the ship, the logical position " +
+             "and the visible mesh have come apart. Turn off for demos.")]
+    public bool showCenterMarker = true;
+
     /// <summary>
     /// Nudge a cup slot away from the ship's start position.
     ///
@@ -377,6 +382,10 @@ public class ArenaPlacer : MonoBehaviour
 
         var scoreBoard = FindAnyObjectByType<ScoreBoard>();
         if (scoreBoard != null) scoreBoard.WatchShip(playerShip);
+
+        // Draws where the game thinks the ship is, so the next screenshot
+        // answers the question outright instead of inviting another theory.
+        if (showCenterMarker) CenterMarker.Create(playerShip, cupMaterial);
 
         int ghostBots = FindObjectsByType<GhostBot>(FindObjectsSortMode.None).Length;
         if (ghostBots > 1)
@@ -517,9 +526,31 @@ public class ArenaPlacer : MonoBehaviour
             // danger zone and read as far bigger than it was.
             if (tornado.funnel != null)
             {
-                float w = tornado.influenceRadius;          // diameter = radius
-                tornado.funnel.localScale = new Vector3(
-                    w, tornado.funnel.localScale.y, w);
+                // Scale to MEASURED width, not to an assumed 1-unit mesh.
+                // Setting localScale = influenceRadius silently assumes the
+                // funnel mesh is exactly one metre across; the rendered column
+                // was several times its actual danger radius, so the player
+                // could not tell where the tornado really was.
+                var fr = tornado.funnel.GetComponentInChildren<Renderer>();
+                float target = tornado.influenceRadius * 2f;   // want a diameter
+
+                if (fr != null && fr.bounds.size.x > 1e-4f)
+                {
+                    float current = fr.bounds.size.x;
+                    float k = target / current;
+                    Vector3 s = tornado.funnel.localScale;
+                    tornado.funnel.localScale = new Vector3(s.x * k, s.y, s.z * k);
+
+                    Debug.LogFormat(
+                        "[Tornado] funnel width {0:F3} -> {1:F3} m (influenceRadius {2:F3})",
+                        current, target, tornado.influenceRadius);
+                }
+                else
+                {
+                    tornado.funnel.localScale = new Vector3(
+                        target, tornado.funnel.localScale.y, target);
+                }
+
                 tornado.RefreshFunnelBaseScale();
             }
         }

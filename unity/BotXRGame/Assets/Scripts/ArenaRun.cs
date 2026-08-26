@@ -370,6 +370,12 @@ public class ArenaRun : MonoBehaviour
         Begin(startPoint, forward, arenaSize, floorY, hoverHeight);
     }
 
+    /// <summary>
+    /// Lets the placer write to the HUD before a run exists. Safe because the
+    /// run does not touch the HUD until BeginAt.
+    /// </summary>
+    public void ShowMessage(string s) { SetHud(s); }
+
     private void SetHud(string s)
     {
         if (hudText != null) hudText.text = s;

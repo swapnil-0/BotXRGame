@@ -32,9 +32,13 @@ public class ArenaPlacer : MonoBehaviour
     [Range(0.1f, 0.9f)] public float pressThreshold = 0.5f;
 
     [Header("Arena")]
-    [Tooltip("Edge length in metres. 0.9144 = 3 ft (fits a small room), " +
-             "2.4384 = 8 ft (the real field). Ship speed and tornado size are " +
-             "derived from this, so a course tuned small behaves the same large.")]
+    [Tooltip("Selectable sizes in FEET. Push the thumbstick left or right " +
+             "while aiming to cycle; the rectangle resizes live so you choose " +
+             "by seeing what actually fits the room.")]
+    public float[] arenaSizeOptionsFeet = { 3f, 5f, 7f, 8f, 9f };
+    [Tooltip("Which option to start on. 0 = the first entry above.")]
+    public int defaultSizeIndex = 0;
+    [Tooltip("Edge length in metres. Set from the selected option at runtime.")]
     public float arenaSize = 0.9144f;
     [Tooltip("How far the ship floats above the floor.")]
     public float hoverHeight = 0.04f;
@@ -98,6 +102,29 @@ public class ArenaPlacer : MonoBehaviour
              "under single-pass instanced XR, only in one eye.")]
     public Material cupMaterial;
 
+    [Tooltip("Thin the course out on small arenas. Every fraction here scales " +
+             "with arenaSize, but the SHIP does not - it is a fixed physical " +
+             "size. So at 3 ft two tornado bands leave gaps the ship cannot " +
+             "actually fit through, even though the proportions look identical " +
+             "to 8 ft. Turn off to force the raw cupCount/tornadoCount.")]
+    public bool scaleDensityWithArena = true;
+
+    /// <summary>Tornadoes to actually spawn, after the small-arena rule.</summary>
+    private int EffectiveTornadoCount =>
+        (scaleDensityWithArena && arenaSize < 1.3f) ? Mathf.Min(1, tornadoCount) : tornadoCount;
+
+    /// <summary>Cups to actually spawn, after the small-arena rule.</summary>
+    private int EffectiveCupCount
+    {
+        get
+        {
+            if (!scaleDensityWithArena) return cupCount;
+            if (arenaSize < 1.3f) return Mathf.Min(2, cupCount);   // under ~4 ft
+            if (arenaSize < 1.8f) return Mathf.Min(3, cupCount);   // under ~6 ft
+            return cupCount;
+        }
+    }
+
     public bool IsPlaced { get; private set; }
     public event Action<Vector3, Vector3> OnPlaced;   // origin, forward
 
@@ -121,11 +148,73 @@ public class ArenaPlacer : MonoBehaviour
             placeAction.action.Enable();
     }
 
+    private int sizeIndex;
+    private bool sizeLatched;
+
     void Start()
     {
         // The ship only appears once the area exists - during area selection
         // the player should see nothing but the rectangle.
         if (ship != null) ship.gameObject.SetActive(false);
+
+        // A component already serialized in the scene predates this field, and
+        // Unity will not backfill an array default onto it - it deserializes
+        // as empty. Rebuild it rather than silently shipping no options.
+        if (arenaSizeOptionsFeet == null || arenaSizeOptionsFeet.Length == 0)
+            arenaSizeOptionsFeet = new[] { 3f, 5f, 7f, 8f, 9f };
+
+        sizeIndex = Mathf.Clamp(defaultSizeIndex, 0, arenaSizeOptionsFeet.Length - 1);
+        ApplySelectedSize();
+    }
+
+    private void ApplySelectedSize()
+    {
+        arenaSize = arenaSizeOptionsFeet[sizeIndex] * 0.3048f;
+    }
+
+    /// <summary>
+    /// Cycle the arena size with the thumbstick during aiming.
+    ///
+    /// Borrows GhostBot's move action rather than adding another Inspector
+    /// field: the ship is parked during area selection, so the stick is free,
+    /// and this needs no extra wiring.
+    /// </summary>
+    private void ReadSizeInput()
+    {
+        if (arenaSizeOptionsFeet == null || arenaSizeOptionsFeet.Length < 2) return;
+        if (ship == null) return;
+
+        var bot = ship.GetComponent<GhostBot>();
+        if (bot == null || bot.moveAction == null || bot.moveAction.action == null) return;
+
+        // GhostBot enables this in OnEnable, but the ship is deactivated for
+        // the whole of area selection - so nothing has enabled it yet and
+        // ReadValue would sit at zero forever.
+        if (!bot.moveAction.action.enabled) bot.moveAction.action.Enable();
+
+        float x = bot.moveAction.action.ReadValue<Vector2>().x;
+
+        // Latch so one flick moves one step; release below 0.3 to re-arm.
+        if (!sizeLatched && Mathf.Abs(x) > 0.6f)
+        {
+            sizeIndex += (x > 0f) ? 1 : -1;
+            sizeIndex = Mathf.Clamp(sizeIndex, 0, arenaSizeOptionsFeet.Length - 1);
+            ApplySelectedSize();
+            sizeLatched = true;
+        }
+        else if (sizeLatched && Mathf.Abs(x) < 0.3f)
+        {
+            sizeLatched = false;
+        }
+    }
+
+    private void ShowSizePrompt()
+    {
+        if (run == null) return;
+        float ft = arenaSizeOptionsFeet[sizeIndex];
+        run.ShowMessage(string.Format(
+            "{0:0} x {1:0} ft   ({2}/{3})\nstick left/right to resize, trigger to place",
+            ft, ft, sizeIndex + 1, arenaSizeOptionsFeet.Length));
     }
 
     void Update()
@@ -134,7 +223,12 @@ public class ArenaPlacer : MonoBehaviour
 
         if (CurrentPhase == Phase.Area)
         {
+            // Size first: UpdateAim runs the free-space probe against
+            // arenaSize, so changing it afterwards would validate one
+            // footprint and draw another.
+            ReadSizeInput();
             UpdateAim();
+            ShowSizePrompt();
             ReadInput();
         }
         else
@@ -231,13 +325,18 @@ public class ArenaPlacer : MonoBehaviour
             // The slot between the two bands is narrower than the vortex
             // radius, so no cup goes there - two before the first band, two
             // after the second. The crossing itself is the challenge.
+            //
+            // Ordered near/far/near/far rather than near/near/far/far so that
+            // taking the first N on a small arena still puts cups on BOTH
+            // sides of the tornadoes. Grouping them would have let a reduced
+            // course be finished without ever crossing a band.
             new Vector2(-0.28f, 0.14f),
+            new Vector2( 0.26f, 0.91f),
             new Vector2( 0.30f, 0.17f),
             new Vector2(-0.28f, 0.88f),
-            new Vector2( 0.26f, 0.91f),
         };
 
-        for (int i = 0; i < Mathf.Min(cupCount, layout.Length); i++)
+        for (int i = 0; i < Mathf.Min(EffectiveCupCount, layout.Length); i++)
         {
             var cup = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             cup.name = "Cup_" + (i + 1);
@@ -279,9 +378,14 @@ public class ArenaPlacer : MonoBehaviour
         float[] periods = { 6.5f, 9.0f };
         float[] phases = { 0f, Mathf.PI * 0.7f };
 
-        for (int i = 0; i < Mathf.Min(tornadoCount, fwdFracs.Length); i++)
+        int count = Mathf.Min(EffectiveTornadoCount, fwdFracs.Length);
+
+        for (int i = 0; i < count; i++)
         {
-            Vector3 basePos = ArenaPoint(0f, fwdFracs[i]);
+            // A lone tornado sits mid-course instead of at 0.38, so the run
+            // is not lopsided when the small-arena rule drops the second one.
+            float fwdFrac = (count == 1) ? 0.5f : fwdFracs[i];
+            Vector3 basePos = ArenaPoint(0f, fwdFrac);
             var t = Instantiate(tornadoPrefab,
                                 new Vector3(basePos.x, arenaFloorY, basePos.z),
                                 Quaternion.identity);

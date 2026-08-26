@@ -19,7 +19,11 @@ export MSYS_NO_PATHCONV=1
 
 PATTERN="${1:-}"
 if [ "$PATTERN" = "game" ]; then
-    PATTERN='\[Cup\]|\[Arena\]|\[Tornado\]|Exception|error CS'
+    # Any [Tag] rather than a hand-listed set. The explicit list silently hid
+    # every [ShipVisualLock] line - including the one naming the transform we
+    # were trying to identify - and a filter that quietly drops the evidence
+    # you are hunting for is worse than no filter.
+    PATTERN='\[[A-Za-z]+\]|Exception|error CS'
 fi
 
 if ! command -v adb >/dev/null 2>&1; then

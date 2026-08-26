@@ -25,6 +25,13 @@ public class ShipVisualLock : MonoBehaviour
              "animation you want to keep - the root already supplies heading.")]
     public bool lockRotation;
 
+    [Tooltip("Zero out any local yaw on the mesh so its nose points along the " +
+             "direction the ship actually travels. Only corrects yaw the mesh " +
+             "carries as a local offset - if the MODEL itself was authored " +
+             "facing sideways, that is a different fix and needs a manual " +
+             "offset instead.")]
+    public bool alignVisualYawToRoot = true;
+
     [Tooltip("Report once CUMULATIVE drift exceeds this many metres.\n\n" +
              "Must be cumulative, not instantaneous: this component resets the " +
              "mesh every frame, so any single frame's drift is one frame's " +
@@ -63,8 +70,34 @@ public class ShipVisualLock : MonoBehaviour
         baseRot = visual.localRotation;
         captured = true;
 
-        Debug.LogFormat("[ShipVisualLock] pinning '{0}' at local {1}",
-            visual.name, basePos);
+        // Local rotation matters as much as position here. The ship drives
+        // along the ROOT's forward, but the player steers by the nose of the
+        // model. Any local yaw on the mesh makes those two disagree by a fixed
+        // angle - push forward, travel sideways - and it would look like a
+        // physics or input fault rather than a transform offset.
+        Vector3 e = visual.localEulerAngles;
+        float yaw = Mathf.DeltaAngle(0f, e.y);
+
+        Debug.LogFormat("[ShipVisualLock] pinning '{0}' at local pos {1} rot {2} (yaw {3:F1} deg)",
+            visual.name, basePos, e, yaw);
+
+        if (Mathf.Abs(yaw) > 5f)
+        {
+            Debug.LogWarningFormat(
+                "[ShipVisualLock] '{0}' is yawed {1:F1} deg from the root. The ship " +
+                "moves along the ROOT's forward, so the nose points {1:F1} deg away " +
+                "from the direction the stick actually drives. Set " +
+                "alignVisualYawToRoot to correct it.",
+                visual.name, yaw);
+        }
+
+        if (alignVisualYawToRoot && Mathf.Abs(yaw) > 0.5f)
+        {
+            baseRot = Quaternion.Euler(e.x, e.y - yaw, e.z);
+            visual.localRotation = baseRot;
+            lockRotation = true;
+            Debug.LogFormat("[ShipVisualLock] corrected yaw by {0:F1} deg", -yaw);
+        }
     }
 
     void LateUpdate()

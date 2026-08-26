@@ -23,9 +23,14 @@ public class CenterMarker : MonoBehaviour
              "inside the ship mesh and become invisible.")]
     public float heightOffset = 0.12f;
 
+    [Tooltip("Length of the heading ray showing the direction the ship " +
+             "actually travels when you push forward.")]
+    public float headingLength = 0.25f;
+
     private GhostBot bot;
     private Transform dot;
     private LineRenderer stem;
+    private LineRenderer heading;
 
     /// <summary>Spawn a marker that follows the given ship. Returns null if bot is null.</summary>
     public static CenterMarker Create(GhostBot bot, Material material)
@@ -78,6 +83,19 @@ public class CenterMarker : MonoBehaviour
         stem.startWidth = 0.004f;
         stem.endWidth = 0.004f;
         if (dot != null) stem.sharedMaterial = dot.GetComponent<Renderer>().sharedMaterial;
+
+        // The direction the ship ACTUALLY moves on forward stick. The player
+        // steers by the nose of the model, so if the nose and this ray point
+        // different ways, "I pushed forward and it went right" is explained -
+        // and the angle between them is the correction needed.
+        var headGo = new GameObject("Heading");
+        headGo.transform.SetParent(transform, false);
+        heading = headGo.AddComponent<LineRenderer>();
+        heading.useWorldSpace = true;
+        heading.positionCount = 2;
+        heading.startWidth = 0.008f;
+        heading.endWidth = 0.001f;      // tapered, so it reads as an arrow
+        if (dot != null) heading.sharedMaterial = dot.GetComponent<Renderer>().sharedMaterial;
     }
 
     void LateUpdate()
@@ -93,6 +111,20 @@ public class CenterMarker : MonoBehaviour
         {
             stem.SetPosition(0, c);
             stem.SetPosition(1, c + Vector3.up * heightOffset);
+        }
+
+        if (heading != null)
+        {
+            // Root forward, because that is what GhostBot drives along -
+            // deliberately not the mesh's forward, which is the thing under
+            // suspicion.
+            Vector3 f = bot.transform.forward;
+            f.y = 0f;
+            if (f.sqrMagnitude > 1e-6f) f.Normalize();
+
+            Vector3 baseP = c + Vector3.up * 0.01f;
+            heading.SetPosition(0, baseP);
+            heading.SetPosition(1, baseP + f * headingLength);
         }
     }
 }

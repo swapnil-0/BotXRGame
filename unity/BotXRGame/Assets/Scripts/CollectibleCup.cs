@@ -13,6 +13,28 @@ public class CollectibleCup : MonoBehaviour
     public static int Remaining => Active.Count;
     public static event System.Action<CollectibleCup> OnCollected;
 
+    // --- diagnostics, read by the score board --------------------------
+    /// <summary>False if no GhostBot could be found - collection can never fire.</summary>
+    public static bool ShipFound { get; private set; }
+
+    /// <summary>
+    /// Planar distance from a point to the nearest uncollected cup, computed on
+    /// demand. Done as one query rather than each cup writing to a shared
+    /// static, which raced depending on script execution order.
+    /// </summary>
+    public static float NearestDistanceTo(Vector3 p)
+    {
+        float best = float.PositiveInfinity;
+        foreach (var c in Active)
+        {
+            if (c == null) continue;
+            Vector3 d = c.transform.position - p;
+            d.y = 0f;
+            best = Mathf.Min(best, d.magnitude);
+        }
+        return best;
+    }
+
     [Tooltip("Ship centre within this distance collects the cup.")]
     public float collectRadius = 0.28f;
     // 0.15 was a near-miss machine: the cup is 7 cm wide and the test runs
@@ -25,7 +47,6 @@ public class CollectibleCup : MonoBehaviour
     public static void ResetAll()
     {
         CollectedCount = 0;
-        // Destroy leftovers from a previous round.
         foreach (var c in Active.ToArray())
             if (c != null) Destroy(c.gameObject);
         Active.Clear();
@@ -34,15 +55,25 @@ public class CollectibleCup : MonoBehaviour
     void OnEnable() { if (!collected) Active.Add(this); }
     void OnDisable() { Active.Remove(this); }
 
-    void Start() { ship = FindAnyObjectByType<GhostBot>(); }
-
     void Update()
     {
-        if (collected || ship == null) return;
+        if (collected) return;
+
+        // Re-acquire every frame until found. The ship is deactivated during
+        // arena selection, and FindAnyObjectByType skips inactive objects - so
+        // a single lookup in Start can silently come back null forever.
+        if (ship == null)
+        {
+            ship = FindAnyObjectByType<GhostBot>();
+            ShipFound = ship != null;
+            if (ship == null) return;
+        }
 
         Vector3 d = ship.transform.position - transform.position;
         d.y = 0f;
-        if (d.magnitude <= collectRadius) Collect();
+        float dist = d.magnitude;
+
+        if (dist <= collectRadius) Collect();
     }
 
     private void Collect()
@@ -51,8 +82,8 @@ public class CollectibleCup : MonoBehaviour
         CollectedCount++;
         Active.Remove(this);
         OnCollected?.Invoke(this);
-        // No particle asset exists yet, so the pickup feedback is the cup
-        // popping upward briefly before vanishing - visible and free.
+        Debug.Log("[Cup] collected at " + transform.position +
+                  "  total " + CollectedCount);
         StartCoroutine(PopAndVanish());
     }
 

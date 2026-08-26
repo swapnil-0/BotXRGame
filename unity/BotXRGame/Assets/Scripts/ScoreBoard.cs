@@ -41,6 +41,9 @@ public class ScoreBoard : MonoBehaviour
 
     private ArenaRun run;
     private Tornado tornado;
+    private GhostBot ship;
+    [Tooltip("Shown in the debug line for comparison against nearest cup.")]
+    public float cupRadiusForDisplay = 0.28f;
     private bool placed;
 
     void Awake()
@@ -102,12 +105,32 @@ public class ScoreBoard : MonoBehaviour
             if (!showDebug) { debugText.text = ""; return; }
 
             if (tornado == null) tornado = FindAnyObjectByType<Tornado>();
-            debugText.text = tornado == null
+            if (ship == null) ship = FindAnyObjectByType<GhostBot>();
+
+            string t = tornado == null
                 ? "no tornado"
-                : string.Format(
-                    "{0}  d {1:F2}/{2:F2}\npull {3:F2}  ship {4:F2}  str {5:F2}",
+                : string.Format("{0} d {1:F2}/{2:F2} pull {3:F2}",
                     tornado.State, tornado.LastDistance, tornado.influenceRadius,
-                    tornado.LastPull, run.RunSpeed, tornado.Strength);
+                    tornado.LastPull);
+
+            // Cup diagnostics: distinguishes "never spawned" from "spawned in
+            // the wrong place" from "ship reference is null", which all look
+            // identical from inside the headset.
+            string cups;
+            if (ship == null)
+            {
+                cups = "cups: NO SHIP";
+            }
+            else
+            {
+                float near = CollectibleCup.NearestDistanceTo(ship.transform.position);
+                cups = string.Format("cups active {0}  nearest {1}  need <{2:F2}",
+                    CollectibleCup.Remaining,
+                    float.IsInfinity(near) ? "--" : near.ToString("F2"),
+                    cupRadiusForDisplay);
+            }
+
+            debugText.text = t + "\n" + cups;
         }
     }
 }

@@ -183,7 +183,10 @@ public class Tornado : MonoBehaviour
             return;
         }
 
-        Vector3 delta = bot.transform.position - transform.position;
+        // Center, not transform.position: the ship's pivot sits well outside
+        // its own mesh, so the origin was being tested against the funnel
+        // while the visible ship was somewhere else entirely.
+        Vector3 delta = bot.Center - transform.position;
         delta.y = 0f;                                  // planar force only
         float d = delta.magnitude;
 

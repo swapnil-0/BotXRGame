@@ -268,9 +268,18 @@ public class ArenaPlacer : MonoBehaviour
                        && Mathf.Abs(sideDist) <= half - inset;
 
         ship.gameObject.SetActive(true);
-        ship.transform.position = new Vector3(hit.x, arenaFloorY + hoverHeight, hit.z);
         ship.transform.rotation = Quaternion.LookRotation(arenaForward, Vector3.up);
-        shipAimPoint = ship.transform.position;
+
+        // Put the ship's visible middle under the cursor. Writing
+        // transform.position here parked the pivot on the aim point and left
+        // the model itself a long way off - and shipAimPoint, which becomes
+        // the start and respawn position, inherited that same error.
+        Vector3 aimPoint = new Vector3(hit.x, arenaFloorY + hoverHeight, hit.z);
+        var shipBot = ship.GetComponent<GhostBot>();
+        if (shipBot != null) shipBot.MoveCenterTo(aimPoint);
+        else ship.position = aimPoint;
+
+        shipAimPoint = aimPoint;
     }
 
     private bool shipWasPressed;

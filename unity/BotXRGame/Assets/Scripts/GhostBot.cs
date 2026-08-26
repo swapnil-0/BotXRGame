@@ -58,6 +58,59 @@ public class GhostBot : MonoBehaviour
     private Vector3 externalAccum;
     private float linearVel, angularVel;   // SmoothDamp state
 
+    // --- visual centre --------------------------------------------------
+    // The ship model is an imported asset whose mesh pivot is nowhere near
+    // its visual middle, and it is scaled down on top of that. Measured in
+    // the headset the gap was 0.63 m - wider than a 3 ft arena. Anything that
+    // asks "where is the ship" must therefore use Center, not
+    // transform.position, or it will be testing a point in empty space.
+    private bool centerCached;
+    private Vector3 localCenter;
+
+    /// <summary>
+    /// World position of the middle of the ship's visible geometry.
+    /// Falls back to transform.position if there is nothing to measure.
+    /// </summary>
+    public Vector3 Center
+    {
+        get
+        {
+            if (!centerCached) CacheCenter();
+            return transform.TransformPoint(localCenter);
+        }
+    }
+
+    /// <summary>Offset from the transform origin to the visual centre, world space.</summary>
+    public Vector3 CenterOffset => Center - transform.position;
+
+    /// <summary>
+    /// Teleport so the ship's VISIBLE middle lands on <paramref name="worldPoint"/>.
+    /// Use for respawns - setting transform.position directly puts the pivot
+    /// there and leaves the ship itself off to one side.
+    /// </summary>
+    public void MoveCenterTo(Vector3 worldPoint)
+    {
+        transform.position = worldPoint - CenterOffset;
+    }
+
+    private void CacheCenter()
+    {
+        var rends = GetComponentsInChildren<Renderer>();
+        if (rends == null || rends.Length == 0)
+        {
+            // Do NOT latch: renderers may simply not exist yet. Latching here
+            // would freeze the offset at zero for the whole session.
+            localCenter = Vector3.zero;
+            return;
+        }
+
+        Bounds b = rends[0].bounds;
+        for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
+
+        localCenter = transform.InverseTransformPoint(b.center);
+        centerCached = true;
+    }
+
     void OnEnable()
     {
         if (moveAction != null && moveAction.action != null)
@@ -137,7 +190,10 @@ public class GhostBot : MonoBehaviour
     {
         if (playAreaCenter == null) return;
 
-        Vector3 local = playAreaCenter.InverseTransformPoint(transform.position);
+        // Clamp the visible ship, not the pivot. Clamping the pivot let the
+        // model sail well outside the rectangle while the origin sat neatly
+        // on the boundary.
+        Vector3 local = playAreaCenter.InverseTransformPoint(Center);
         float hx = playAreaSize.x * 0.5f;
         float hz = playAreaSize.y * 0.5f;
 
@@ -146,6 +202,6 @@ public class GhostBot : MonoBehaviour
         if (Mathf.Abs(local.z) > hz) { local.z = Mathf.Sign(local.z) * hz; clamped = true; }
 
         if (clamped)
-            transform.position = playAreaCenter.TransformPoint(local);
+            MoveCenterTo(playAreaCenter.TransformPoint(local));
     }
 }

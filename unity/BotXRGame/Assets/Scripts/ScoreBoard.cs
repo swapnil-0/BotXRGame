@@ -65,10 +65,16 @@ public class ScoreBoard : MonoBehaviour
         pos.y = floorY + heightAboveFloor;
         boardRoot.position = pos;
 
-        // Face back down the course toward the player, then tilt the top away
-        // so a low board angles up into their eyeline.
-        boardRoot.rotation = Quaternion.LookRotation(-forward.normalized, Vector3.up)
-                             * Quaternion.Euler(-tiltDegrees, 0f, 0f);
+        // A world-space Canvas draws its content on the +Z face and does no
+        // back-face culling, so getting this backwards does not hide the board
+        // - it shows the reverse side and every label reads mirrored, which is
+        // exactly what the first headset capture showed. LookRotation(forward)
+        // is what actually puts the readable face toward the start line.
+        //
+        // Tilt sign follows: with this yaw, +tilt leans the top away from the
+        // player, which is what makes a knee-high board readable standing up.
+        boardRoot.rotation = Quaternion.LookRotation(forward.normalized, Vector3.up)
+                             * Quaternion.Euler(tiltDegrees, 0f, 0f);
 
         boardRoot.gameObject.SetActive(true);
         placed = true;
@@ -123,11 +129,16 @@ public class ScoreBoard : MonoBehaviour
             }
             else
             {
-                float near = CollectibleCup.NearestDistanceTo(ship.transform.position);
-                cups = string.Format("cups active {0}  nearest {1}  need <{2:F2}",
+                float near = CollectibleCup.NearestDistanceTo(ship.Center);
+                // pivot = gap between the ship's origin and its visible middle.
+                // Should be a constant non-zero number; if it reads 0.00 the
+                // renderer scan found nothing and every distance below is
+                // measuring the wrong point again.
+                cups = string.Format("cups active {0}  nearest {1}  need <{2:F2}  pivot {3:F2}",
                     CollectibleCup.Remaining,
                     float.IsInfinity(near) ? "--" : near.ToString("F2"),
-                    cupRadiusForDisplay);
+                    cupRadiusForDisplay,
+                    ship.CenterOffset.magnitude);
             }
 
             debugText.text = t + "\n" + cups;

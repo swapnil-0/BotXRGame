@@ -122,23 +122,27 @@ public class ArenaRun : MonoBehaviour
         ship.MotionLocked = true;
         ship.acceptExternalForces = false;
 
-        Vector3 hold = tornado != null ? tornado.transform.position : ship.transform.position;
+        Vector3 hold = tornado != null ? tornado.transform.position : ship.Center;
         hold.y = floorY + hoverHeight;
 
         for (float t = captureHoldSeconds; t > 0f; t -= Time.deltaTime)
         {
-            ship.transform.position = hold;
-            // Spin while held: makes "swallowed" legible without any new art.
+            // Spin first, then re-centre: the pivot-to-visual offset rotates
+            // with the ship, so placing before spinning would fling the model
+            // around the hold point instead of turning it on the spot.
             ship.transform.Rotate(0f, captureSpinDegreesPerSecond * Time.deltaTime, 0f);
+            ship.MoveCenterTo(hold);
             SetHud(string.Format("SWALLOWED\nreturning in {0:F1}s", t));
             yield return null;
         }
 
         if (respawnAtStart)
         {
-            ship.transform.position = new Vector3(
-                startPoint.x, floorY + hoverHeight, startPoint.z);
+            // Rotation before position - MoveCenterTo depends on the current
+            // orientation to work out where the pivot has to go.
             ship.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
+            ship.MoveCenterTo(new Vector3(
+                startPoint.x, floorY + hoverHeight, startPoint.z));
         }
 
         // Clear momentum before unlocking, or the ship lurches away from the
@@ -179,8 +183,8 @@ public class ArenaRun : MonoBehaviour
 
         if (ship != null)
         {
-            ship.transform.position = new Vector3(origin.x, y + hover, origin.z);
             ship.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
+            ship.MoveCenterTo(new Vector3(origin.x, y + hover, origin.z));
             ship.acceptExternalForces = true;
             ship.ResetMotion();
 
@@ -243,9 +247,11 @@ public class ArenaRun : MonoBehaviour
 
         // Hold the ship at hover height; the tornado only acts in the plane,
         // but clamping keeps it from creeping vertically over a long run.
-        Vector3 p = ship.transform.position;
+        // Everything below is about where the ship LOOKS, so it works in
+        // Center space; only the final write goes back to the transform.
+        Vector3 p = ship.Center;
         p.y = floorY + hoverHeight;
-        ship.transform.position = p;
+        ship.MoveCenterTo(p);
 
         Vector3 toFinish = finishPoint - p;
         toFinish.y = 0f;

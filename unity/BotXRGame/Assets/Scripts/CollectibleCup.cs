@@ -69,7 +69,10 @@ public class CollectibleCup : MonoBehaviour
             if (ship == null) return;
         }
 
-        Vector3 d = ship.transform.position - transform.position;
+        // Center, not transform.position - the ship model's pivot is ~0.6 m
+        // clear of its own geometry, which is why driving visually over a cup
+        // reported "nearest 0.63" and never collected.
+        Vector3 d = ship.Center - transform.position;
         d.y = 0f;
         float dist = d.magnitude;
 

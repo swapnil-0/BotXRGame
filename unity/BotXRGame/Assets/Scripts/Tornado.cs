@@ -148,7 +148,11 @@ public class Tornado : MonoBehaviour
 
     void Start()
     {
-        if (bot == null) bot = FindAnyObjectByType<GhostBot>();
+        // Same decoy hazard as the cups: FindAnyObjectByType would skip the
+        // real ship while it is deactivated for placement and return a
+        // stationary GhostBot instead - a vortex that silently tracks the
+        // wrong target. Use the ship the placer registered.
+        if (bot == null) bot = CollectibleCup.Ship;
         if (radiusRing != null)
             radiusRing.localScale = new Vector3(influenceRadius * 2f, 1f, influenceRadius * 2f);
     }

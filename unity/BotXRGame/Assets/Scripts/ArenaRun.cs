@@ -38,6 +38,16 @@ public class ArenaRun : MonoBehaviour
              "same on a full-size field. 6 s across 3 ft gives about 0.15 m/s.")]
     public float targetCrossingSeconds = 6f;
 
+    [Tooltip("Scales the derived run speed. 1.5 = 50% faster.\n\n" +
+             "This exists as a NEW field on purpose. targetCrossingSeconds is " +
+             "already serialized in the scene, so editing its code default " +
+             "would change nothing - the same trap that left " +
+             "twinTornadoRadiusFraction stuck at 0.11. A field Unity has never " +
+             "serialized does take its code default. Fold this into " +
+             "targetCrossingSeconds via the Inspector when convenient and set " +
+             "this back to 1.")]
+    public float speedMultiplier = 1.5f;
+
     [Header("Finish")]
     [Tooltip("Clamp margin as a fraction of arena size. The finish sits on the " +
              "far edge, so a tight clamp fights the player at the goal.")]
@@ -179,7 +189,7 @@ public class ArenaRun : MonoBehaviour
 
         // Scale speed to the arena so the crossing always takes about the same
         // time, whether this is a 3 ft test square or the full 8 ft field.
-        RunSpeed = arenaSize / Mathf.Max(targetCrossingSeconds, 0.5f);
+        RunSpeed = arenaSize / Mathf.Max(targetCrossingSeconds, 0.5f) * speedMultiplier;
 
         if (ship != null)
         {

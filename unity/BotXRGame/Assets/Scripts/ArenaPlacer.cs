@@ -334,6 +334,19 @@ public class ArenaPlacer : MonoBehaviour
              "second mover has been found and removed.")]
     public bool lockShipVisual = true;
 
+    [Header("Tornado tuning applied at spawn")]
+    [Tooltip("Overrides the prefab's suck. Set at spawn because the prefab " +
+             "value is already serialized and a code default cannot reach it.\n\n" +
+             "Was 1.2 and read as too strong - but only after influenceRadius " +
+             "was corrected from 0.10 to 0.15 and the funnel was scaled to " +
+             "match, so 1.2 had never actually been felt at its true size.")]
+    public float tornadoSuck = 0.95f;
+
+    [Tooltip("Overrides the prefab's swirl. Kept as-is: swirl is what makes " +
+             "the vortex read as a vortex rather than a magnet, and the " +
+             "complaint was about being unable to escape, not about spin.")]
+    public float tornadoSwirl = 0.25f;
+
     /// <summary>
     /// Nudge a cup slot away from the ship's start position.
     ///
@@ -507,13 +520,17 @@ public class ArenaPlacer : MonoBehaviour
 
             if (ship != null) tornado.bot = ship.GetComponent<GhostBot>();
             tornado.influenceRadius = arenaSize * twinTornadoRadiusFraction;
+            tornado.suckMetersPerSecond = tornadoSuck;
+            tornado.swirlMetersPerSecond = tornadoSwirl;
 
             // The board keeps reporting 0.10 where this computes 0.146, so log
             // both the inputs and the value actually written. If the readout
             // still disagrees with this line, something resets it after spawn.
             Debug.LogFormat(
-                "[Tornado] {0}: arena {1:F3} x frac {2:F3} = influenceRadius {3:F3}",
-                t.name, arenaSize, twinTornadoRadiusFraction, tornado.influenceRadius);
+                "[Tornado] {0}: arena {1:F3} x frac {2:F3} = influenceRadius {3:F3}  " +
+                "suck {4:F2} swirl {5:F2}",
+                t.name, arenaSize, twinTornadoRadiusFraction, tornado.influenceRadius,
+                tornado.suckMetersPerSecond, tornado.swirlMetersPerSecond);
             tornado.InitPatrol(arenaRight,
                                arenaSize * tornadoPatrolFraction,
                                periods[i], phases[i]);

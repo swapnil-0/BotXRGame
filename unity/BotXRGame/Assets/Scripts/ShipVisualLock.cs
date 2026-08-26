@@ -21,9 +21,14 @@ public class ShipVisualLock : MonoBehaviour
     [Tooltip("The visible mesh under the ship root. Found automatically if unset.")]
     public Transform visual;
 
-    [Tooltip("Also pin local rotation. Leave off if the model has an idle " +
-             "animation you want to keep - the root already supplies heading.")]
-    public bool lockRotation;
+    [Tooltip("Pin local rotation as well as position. ON by default.\n\n" +
+             "It was off, and that was the bug: the mesh reports zero local " +
+             "yaw at spawn, so the alignment path never enabled this, and the " +
+             "mesh's rotation was left free while only its position was held. " +
+             "Something then rotated it progressively - nose diverging from " +
+             "the direction of travel the longer you played, while the heading " +
+             "ray stayed correct.")]
+    public bool lockRotation = true;
 
     [Tooltip("Zero out any local yaw on the mesh so its nose points along the " +
              "direction the ship actually travels. Only corrects yaw the mesh " +
@@ -40,6 +45,9 @@ public class ShipVisualLock : MonoBehaviour
              "reported nothing whether or not a second mover existed.")]
     public float reportDriftOver = 0.05f;
 
+    [Tooltip("Same, in degrees, for rotation drift.")]
+    public float reportAngleDriftOver = 5f;
+
     private Vector3 basePos;
     private Quaternion baseRot;
     private bool captured;
@@ -47,6 +55,13 @@ public class ShipVisualLock : MonoBehaviour
     private float cumulativeDrift;
     private float peakFrameDrift;
     private int driftFrames;
+
+    // Rotation drift was not measured at all, which is why nothing was
+    // reported while the nose swung away from the heading. Position-only
+    // instrumentation cannot see a rotation fault.
+    private float cumulativeAngleDrift;
+    private float peakAngleDrift;
+    private bool reportedAngle;
 
     void Start()
     {
@@ -122,6 +137,24 @@ public class ShipVisualLock : MonoBehaviour
                     "component can be removed.",
                     visual.name, cumulativeDrift, driftFrames, peakFrameDrift,
                     peakFrameDrift / Mathf.Max(Time.deltaTime, 1e-4f));
+            }
+        }
+
+        float angle = Quaternion.Angle(visual.localRotation, baseRot);
+        if (angle > 0.01f)
+        {
+            cumulativeAngleDrift += angle;
+            peakAngleDrift = Mathf.Max(peakAngleDrift, angle);
+
+            if (!reportedAngle && cumulativeAngleDrift > reportAngleDriftOver)
+            {
+                reportedAngle = true;
+                Debug.LogWarningFormat(
+                    "[ShipVisualLock] '{0}' is being ROTATED by something else. " +
+                    "Cumulative {1:F1} deg, peak {2:F3} deg/frame (~{3:F1} deg/s). " +
+                    "This is the nose drifting off the direction of travel.",
+                    visual.name, cumulativeAngleDrift, peakAngleDrift,
+                    peakAngleDrift / Mathf.Max(Time.deltaTime, 1e-4f));
             }
         }
 

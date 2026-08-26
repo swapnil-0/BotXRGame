@@ -319,6 +319,53 @@ public class ArenaPlacer : MonoBehaviour
              + arenaForward * (fwdFrac * arenaSize);
     }
 
+    [Tooltip("A cup must spawn at least this far from where the ship starts, " +
+             "in metres. Below the cup's collect radius (0.28) it is collected " +
+             "on the first frame and the run begins already scored.")]
+    public float shipStartClearance = 0.45f;
+
+    /// <summary>
+    /// Nudge a cup slot away from the ship's start position.
+    ///
+    /// Tries the intended slot, then the lateral mirror, then progressively
+    /// further down the course, and finally returns whichever candidate was
+    /// furthest from the ship. On a 3 ft arena there is not always a slot that
+    /// fully satisfies the clearance, and "as far away as possible" still
+    /// beats "collected before the player moves".
+    /// </summary>
+    private Vector2 ResolveCupSlot(Vector2 slot, float clearance)
+    {
+        Vector2[] candidates =
+        {
+            slot,
+            new Vector2(-slot.x, slot.y),                                  // mirror across the centre line
+            new Vector2( slot.x, Mathf.Clamp(slot.y + 0.22f, 0.08f, 0.94f)),
+            new Vector2(-slot.x, Mathf.Clamp(slot.y + 0.22f, 0.08f, 0.94f)),
+            new Vector2( slot.x, Mathf.Clamp(slot.y + 0.40f, 0.08f, 0.94f)),
+        };
+
+        Vector2 best = slot;
+        float bestDist = -1f;
+
+        foreach (var c in candidates)
+        {
+            Vector3 world = ArenaPoint(c.x, c.y);
+            Vector3 d = world - shipAimPoint;
+            d.y = 0f;
+            float dist = d.magnitude;
+
+            if (dist >= clearance) return c;         // good enough, keep layout intent
+            if (dist > bestDist) { bestDist = dist; best = c; }
+        }
+
+        Debug.LogWarningFormat(
+            "[Cup] no slot clears the ship start by {0:F2} m; using the furthest at {1:F2} m. " +
+            "Arena {2:F2} m may be too small for {3} cups.",
+            clearance, bestDist, arenaSize, EffectiveCupCount);
+
+        return best;
+    }
+
     private void SpawnCups()
     {
         CollectibleCup.ResetAll();
@@ -345,6 +392,12 @@ public class ArenaPlacer : MonoBehaviour
             new Vector2(-0.28f, 0.88f),
         };
 
+        // The near slots sit at 0.14-0.17 of the course, which is exactly
+        // where the player tends to place the ship - so Cup_1 was spawning on
+        // top of it and being collected 15 ms later, before anyone touched the
+        // stick. Every run silently started at 1/2.
+        float clearance = shipStartClearance;
+
         for (int i = 0; i < Mathf.Min(EffectiveCupCount, layout.Length); i++)
         {
             var cup = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -352,7 +405,8 @@ public class ArenaPlacer : MonoBehaviour
             var col = cup.GetComponent<Collider>();
             if (col != null) Destroy(col);
 
-            Vector3 p = ArenaPoint(layout[i].x, layout[i].y);
+            Vector2 slot = ResolveCupSlot(layout[i], clearance);
+            Vector3 p = ArenaPoint(slot.x, slot.y);
             cup.transform.position = new Vector3(p.x, arenaFloorY + cupHeight * 0.5f, p.z);
             cup.transform.localScale = new Vector3(0.07f, cupHeight * 0.5f, 0.07f);
 

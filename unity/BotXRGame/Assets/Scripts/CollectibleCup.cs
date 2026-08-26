@@ -43,6 +43,7 @@ public class CollectibleCup : MonoBehaviour
 
     private GhostBot ship;
     private bool collected;
+    private bool armed;
 
     public static void ResetAll()
     {
@@ -75,6 +76,19 @@ public class CollectibleCup : MonoBehaviour
         Vector3 d = ship.Center - transform.position;
         d.y = 0f;
         float dist = d.magnitude;
+
+        // A cup must see the ship leave before it can be collected.
+        //
+        // Placement alone is not a guarantee: on a small arena a cup can still
+        // spawn near the start, and it was being collected 15 ms after spawn -
+        // the run began already scored, with no way to tell from inside the
+        // headset. Requiring the ship to be clearly outside first means a cup
+        // can only be taken by actually driving to it.
+        if (!armed)
+        {
+            if (dist > collectRadius * 1.5f) armed = true;
+            return;
+        }
 
         if (dist <= collectRadius) Collect();
     }

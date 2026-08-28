@@ -53,22 +53,22 @@ public static class SceneReport
         // ------------------------------------------------- UI health checks
         sb.AppendLine("## UI plumbing");
         sb.AppendLine("```");
-        var eventSystems = Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
+        var eventSystems = Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Include);
         sb.AppendLine("EventSystem count: " + eventSystems.Length +
                       (eventSystems.Length == 0
                           ? "   <-- UI buttons cannot be clicked at all"
                           : ""));
         foreach (var es in eventSystems)
         {
-            sb.AppendLine("  " + Path(es.transform));
+            sb.AppendLine("  " + HierarchyPath(es.transform));
             foreach (var c in es.GetComponents<Component>())
                 if (c != null && !(c is Transform))
                     sb.AppendLine("     component: " + c.GetType().Name);
         }
 
-        foreach (var canvas in Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+        foreach (var canvas in Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include))
         {
-            sb.AppendLine("Canvas '" + Path(canvas.transform) + "'");
+            sb.AppendLine("Canvas '" + HierarchyPath(canvas.transform) + "'");
             sb.AppendLine("   renderMode : " + canvas.renderMode +
                           (canvas.renderMode == RenderMode.WorldSpace
                               ? ""
@@ -161,7 +161,7 @@ public static class SceneReport
 
     private static void DumpType(Type t, StringBuilder sb)
     {
-        var found = Object.FindObjectsByType(t, FindObjectsSortMode.None);
+        var found = Object.FindObjectsByType(t, FindObjectsInactive.Include);
 
         sb.AppendLine();
         sb.AppendLine("### " + t.Name + "  (" + found.Length + " in scene)");
@@ -176,7 +176,7 @@ public static class SceneReport
         foreach (var obj in found)
         {
             var comp = obj as Component;
-            sb.AppendLine("on: " + (comp != null ? Path(comp.transform) : obj.name) +
+            sb.AppendLine("on: " + (comp != null ? HierarchyPath(comp.transform) : obj.name) +
                           (comp != null && !comp.gameObject.activeInHierarchy
                               ? "   [INACTIVE]" : ""));
 
@@ -222,7 +222,7 @@ public static class SceneReport
         }
     }
 
-    private static string Path(Transform t)
+    private static string HierarchyPath(Transform t)
     {
         string s = t.name;
         while (t.parent != null) { t = t.parent; s = t.name + "/" + s; }

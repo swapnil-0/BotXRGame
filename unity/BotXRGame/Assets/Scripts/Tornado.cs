@@ -254,6 +254,48 @@ public class Tornado : MonoBehaviour
     private bool funnelBaseSet;
 
     /// <summary>Re-read the funnel's scale as the new breathing baseline.</summary>
+    // Width of the funnel mesh at its ORIGINAL scale, measured once. Needed
+    // because the radius can now be changed repeatedly at runtime, and scaling
+    // relative to the current size compounds rounding every time - the funnel
+    // would creep away from the danger zone over a tuning session.
+    private float funnelUnitWidth = -1f;
+
+    /// <summary>
+    /// Set the influence radius and resize the ring and funnel to match.
+    ///
+    /// Single place that knows how the visuals relate to the radius. The
+    /// placer and the in-headset tuner both call this, so the drawn funnel
+    /// cannot drift from the real danger zone - which it already did once,
+    /// rendering at 0.18 m while the radius was 0.146.
+    /// </summary>
+    public void ApplyRadius(float radius)
+    {
+        influenceRadius = Mathf.Max(0.01f, radius);
+
+        if (radiusRing != null)
+        {
+            float d = influenceRadius * 2f;
+            radiusRing.localScale = new Vector3(d, radiusRing.localScale.y, d);
+        }
+
+        if (funnel != null)
+        {
+            if (funnelUnitWidth < 0f)
+            {
+                var r = funnel.GetComponentInChildren<Renderer>();
+                float w = (r != null) ? r.bounds.size.x : 0f;
+                float sx = Mathf.Abs(funnel.localScale.x) > 1e-4f ? funnel.localScale.x : 1f;
+                // Width the mesh would have at localScale.x == 1.
+                funnelUnitWidth = (w > 1e-4f) ? w / sx : 1f;
+            }
+
+            float target = influenceRadius * 2f;              // a diameter
+            float s = target / Mathf.Max(funnelUnitWidth, 1e-4f);
+            funnel.localScale = new Vector3(s, funnel.localScale.y, s);
+            RefreshFunnelBaseScale();
+        }
+    }
+
     public void RefreshFunnelBaseScale()
     {
         if (funnel != null) { funnelBaseScale = funnel.localScale; funnelBaseSet = true; }

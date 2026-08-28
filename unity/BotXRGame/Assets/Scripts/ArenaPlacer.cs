@@ -528,7 +528,10 @@ public class ArenaPlacer : MonoBehaviour
             if (tornado == null) continue;
 
             if (ship != null) tornado.bot = ship.GetComponent<GhostBot>();
-            tornado.influenceRadius = arenaSize * twinTornadoRadiusFraction;
+            // ApplyRadius owns the ring and funnel scaling now, so the placer
+            // and the runtime tuner cannot disagree about how big a tornado
+            // looks versus how big it actually is.
+            tornado.ApplyRadius(arenaSize * twinTornadoRadiusFraction);
             tornado.suckMetersPerSecond = tornadoSuck;
             tornado.swirlMetersPerSecond = tornadoSwirl;
 
@@ -562,45 +565,9 @@ public class ArenaPlacer : MonoBehaviour
                 if (board != null) board.WatchTornado(tornado);
             }
 
-            var ring = tornado.radiusRing;
-            if (ring != null)
-            {
-                float d = tornado.influenceRadius * 2f;
-                ring.localScale = new Vector3(d, ring.localScale.y, d);
-            }
-
-            // Scale the funnel with the influence radius. The prefab funnel is
-            // a fixed size, so at small radii it towered over its actual
-            // danger zone and read as far bigger than it was.
-            if (tornado.funnel != null)
-            {
-                // Scale to MEASURED width, not to an assumed 1-unit mesh.
-                // Setting localScale = influenceRadius silently assumes the
-                // funnel mesh is exactly one metre across; the rendered column
-                // was several times its actual danger radius, so the player
-                // could not tell where the tornado really was.
-                var fr = tornado.funnel.GetComponentInChildren<Renderer>();
-                float target = tornado.influenceRadius * 2f;   // want a diameter
-
-                if (fr != null && fr.bounds.size.x > 1e-4f)
-                {
-                    float current = fr.bounds.size.x;
-                    float k = target / current;
-                    Vector3 s = tornado.funnel.localScale;
-                    tornado.funnel.localScale = new Vector3(s.x * k, s.y, s.z * k);
-
-                    Debug.LogFormat(
-                        "[Tornado] funnel width {0:F3} -> {1:F3} m (influenceRadius {2:F3})",
-                        current, target, tornado.influenceRadius);
-                }
-                else
-                {
-                    tornado.funnel.localScale = new Vector3(
-                        target, tornado.funnel.localScale.y, target);
-                }
-
-                tornado.RefreshFunnelBaseScale();
-            }
+            // Ring and funnel scaling moved into Tornado.ApplyRadius above, so
+            // there is exactly one implementation for both the placer and the
+            // in-headset tuner to share.
         }
     }
 

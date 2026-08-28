@@ -155,6 +155,29 @@ public static class SessionFlowSetup
             done.Add("InputDebugHUD text on " + hudPanel.name +
                      " (run Bind All Controls to bind its actions)");
 
+            // Tuner panel: its own text, larger area, hidden until opened.
+            var tuneGo = FindOrCreateUiChild(hudPanel.transform, "TunerText");
+            var tuneText = GetOrAdd<TMPro.TextMeshProUGUI>(tuneGo);
+            tuneText.fontSize = 16;
+            tuneText.color = new Color(1f, 0.92f, 0.6f);
+            tuneText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+            tuneText.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            tuneText.text = "";
+
+            var trt = tuneGo.GetComponent<RectTransform>();
+            trt.anchorMin = new Vector2(0f, 0f);
+            trt.anchorMax = new Vector2(1f, 1f);
+            trt.offsetMin = new Vector2(10f, 45f);
+            trt.offsetMax = new Vector2(-10f, -10f);
+
+            var tuner = GetOrAdd<TornadoTuner>(hudPanel);
+            var tunerWires = new Dictionary<string, Object> { { "text", tuneText } };
+            if (placer != null) tunerWires["placer"] = placer;
+            Wire(tuner, tunerWires);
+
+            done.Add("TornadoTuner on " + hudPanel.name +
+                     " (trigger opens it once the arena is placed)");
+
             var canvas = canvasRoot.GetComponentInParent<Canvas>();
             if (canvas != null && canvas.renderMode != RenderMode.WorldSpace)
             {
@@ -373,6 +396,16 @@ public static class SessionFlowSetup
             Overwrite(inputHud, "placeAction", place);
             Overwrite(inputHud, "moveAction", move);
             done.Add("InputDebugHUD: A/B/trigger/stick");
+        }
+
+        var tuner = Object.FindAnyObjectByType<TornadoTuner>();
+        if (tuner != null)
+        {
+            Overwrite(tuner, "toggleAction", place);   // trigger, free after placement
+            Overwrite(tuner, "moveAction", move);
+            Overwrite(tuner, "saveAction", swing);     // A
+            Overwrite(tuner, "resetAction", kick);     // B
+            done.Add("TornadoTuner: trigger opens, stick edits, A saves, B resets");
         }
 
         // Same A/B on the mode menu. Those buttons are not otherwise live until

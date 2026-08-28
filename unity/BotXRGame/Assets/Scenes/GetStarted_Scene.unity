@@ -1248,6 +1248,7 @@ GameObject:
   - component: {fileID: 175247776}
   - component: {fileID: 175247775}
   - component: {fileID: 175247777}
+  - component: {fileID: 175247778}
   m_Layer: 0
   m_Name: XR Origin (VR)
   m_TagString: Untagged
@@ -1353,6 +1354,24 @@ MonoBehaviour:
   m_SerializedLibrary: {fileID: 11400000, guid: 8d639fc7f495d2540ba48d9ceb4bce25, type: 2}
   m_MaxNumberOfMovingImages: 2
   m_TrackedImagePrefab: {fileID: 0}
+--- !u!114 &175247778
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 175247769}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a755456105d27f4ca9c00625c6660d2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TagCupTracker
+  trackedImageManager: {fileID: 175247777}
+  botMarkerId: 0
+  namePrefix: AprilTag_36H11-
+  normalAxis: 0
+  toppleAngle: 45
+  lostAfterSeconds: 1.5
 --- !u!1 &202111492
 GameObject:
   m_ObjectHideFlags: 0
@@ -4066,6 +4085,7 @@ MonoBehaviour:
   aprilTagButton: {fileID: 819386020}
   titleText: {fileID: 29108459}
   helpText: {fileID: 123309416}
+  allowButtonSelection: 0
   selectVirtualAction: {fileID: -6014808934006281698, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   selectAprilTagAction: {fileID: -9129376883668913906, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   pressThreshold: 0.5
@@ -4625,6 +4645,7 @@ GameObject:
   - component: {fileID: 1355259740}
   - component: {fileID: 1355259743}
   - component: {fileID: 1355259744}
+  - component: {fileID: 1355259745}
   m_Layer: 0
   m_Name: TagStandIn
   m_TagString: Untagged
@@ -4639,7 +4660,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1355259739}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -4740,6 +4761,25 @@ MonoBehaviour:
   holdAction: {fileID: 0}
   pressThreshold: 0.5
   onlyInAprilTagMode: 1
+--- !u!114 &1355259745
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355259739}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dbf35e498e61ff4ea47c0f5d6de2d1c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BotTagMarker
+  tagTransform: {fileID: 1355259742}
+  robot: {fileID: 1614957523}
+  startupDrive: {fileID: 1614957525}
+  markerMaterial: {fileID: 2100000, guid: 8679535c100bd2f46af18d7bf2ee30ac, type: 2}
+  dotSize: 0.07
+  dotHeight: 0.1
+  arrowLength: 0.3
 --- !u!1 &1372258869
 GameObject:
   m_ObjectHideFlags: 0
@@ -5497,6 +5537,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2762921764261478860, guid: 12a8f24c67e94c379c1877090b48c017, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1614957523}
+    - targetCorrespondingSourceObject: {fileID: 2762921764261478860, guid: 12a8f24c67e94c379c1877090b48c017, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1614957525}
   m_SourcePrefab: {fileID: 100100000, guid: 12a8f24c67e94c379c1877090b48c017, type: 3}
 --- !u!1 &1614957522 stripped
 GameObject:
@@ -5533,6 +5576,26 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3250488527962512246, guid: 12a8f24c67e94c379c1877090b48c017, type: 3}
   m_PrefabInstance: {fileID: 1614957521}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1614957525
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1614957522}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6c4dd6bec3ec3243aebddd41dba9f22, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BotStartupDrive
+  botTag: {fileID: 0}
+  run: {fileID: 0}
+  placer: {fileID: 0}
+  arriveRadius: 0.12
+  approachSpeed: 0.12
+  approachTurnRate: 0.8
+  turnFirstAngle: 35
+  timeoutSeconds: 30
 --- !u!1 &1651258539
 GameObject:
   m_ObjectHideFlags: 0
@@ -7037,7 +7100,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TornadoTuner
   text: {fileID: 1820134790}
-  toggleAction: {fileID: -2413873833342219222, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  toggleAction: {fileID: -4238090234921321020, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   moveAction: {fileID: -7185608374540891126, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   saveAction: {fileID: -6014808934006281698, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   resetAction: {fileID: -9129376883668913906, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
@@ -7295,6 +7358,7 @@ MonoBehaviour:
   smoothTime: 0.12
   followYaw: 1
   trackingTimeout: 0.5
+  hideShipInAprilTagMode: 1
 --- !u!4 &39388997239660420
 Transform:
   m_ObjectHideFlags: 0

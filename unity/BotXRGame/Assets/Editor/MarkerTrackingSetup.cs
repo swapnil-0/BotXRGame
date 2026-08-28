@@ -21,6 +21,23 @@ public static class MarkerTrackingSetup
     private const string GoogleFeatureType =
         "Google.XR.Extensions.XRMarkerTrackingFeature";
 
+    // 19 = XRMarkerDictionary.AprilTag_36H11, read from the package enum.
+    private const int AprilTag36H11 = 19;
+
+    // Explicit ids with explicit sizes, rather than "All Markers".
+    //
+    // All Markers omits the physical edge, so the runtime has to estimate size
+    // at return - and the package's own warning says not every runtime supports
+    // estimation. An unsupported one gives no tracking, or poses at the wrong
+    // scale, which looks like bad tracking rather than missing configuration.
+    // Explicit entries also let the bot tag and the cup tags be different
+    // sizes, which they will be: a cup top cannot carry a 100 mm tag.
+    private const int BotMarkerId = 0;
+    private const float BotEdgeMetres = 0.100f;
+
+    private const int CupCount = 4;              // ids 1..4
+    private const float CupEdgeMetres = 0.040f;  // MUST match what you print
+
     [MenuItem("Tools/BotXRGame/Set Up AprilTag Tracking", false, 42)]
     public static void SetUp()
     {
@@ -190,9 +207,15 @@ public static class MarkerTrackingSetup
     {
         path = "Assets/SourceFiles/XR/MarkerDatabase.asset";
 
-        if (AssetDatabase.LoadAssetAtPath<ScriptableObject>(path) != null)
+        var existing = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+        if (existing != null)
         {
-            note = "Marker database already exists at " + path;
+            // Top up rather than skip: the database was created with only the
+            // bot id, and the cups need adding without losing hand edits.
+            int added = EnsureEntries(existing);
+            note = added > 0
+                ? "Added " + added + " missing cup entries to " + path
+                : "Marker database already complete at " + path;
             return true;
         }
 
@@ -216,30 +239,14 @@ public static class MarkerTrackingSetup
         var db = ScriptableObject.CreateInstance(dbType);
         AssetDatabase.CreateAsset(db, path);
 
-        var so = new SerializedObject(db);
-        var entries = so.FindProperty("_entries");
-        if (entries == null)
-        {
-            note = "Created " + path + " but could not find its entry list - add the tag by hand";
-            AssetDatabase.SaveAssets();
-            return false;
-        }
+        EnsureEntries(db);
 
-        entries.arraySize = 1;
-        var e = entries.GetArrayElementAtIndex(0);
-
-        // 19 = XRMarkerDictionary.AprilTag_36H11, read from the package enum.
-        SetIfPresent(e, "_dictionary", 19);
-        SetBoolIfPresent(e, "_allMarkers", false);
-        SetIfPresent(e, "_markerId", 0);
-        SetFloatIfPresent(e, "_physicalEdge", 0.1f);
-
-        so.ApplyModifiedProperties();
-        EditorUtility.SetDirty(db);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        note = "Created " + path + " with AprilTag 36H11, id 0, 0.100 m";
+        note = string.Format(
+            "Created {0}: bot id {1} at {2:F3} m, cups id 1-{3} at {4:F3} m",
+            path, BotMarkerId, BotEdgeMetres, CupCount, CupEdgeMetres);
         return true;
     }
 
@@ -261,6 +268,57 @@ public static class MarkerTrackingSetup
 
         AssetDatabase.Refresh();
         return AssetDatabase.IsValidFolder(assetPath);
+    }
+
+    /// <summary>
+    /// Make sure the database holds one explicit entry per id we use.
+    ///
+    /// Adds only what is missing and never edits an existing row, so sizes
+    /// tuned by hand in the Inspector survive a re-run. Returns how many were
+    /// added.
+    /// </summary>
+    private static int EnsureEntries(Object db)
+    {
+        var so = new SerializedObject(db);
+        var entries = so.FindProperty("_entries");
+        if (entries == null) return 0;
+
+        var present = new HashSet<int>();
+        for (int i = 0; i < entries.arraySize; i++)
+        {
+            var e = entries.GetArrayElementAtIndex(i);
+            var idProp = e.FindPropertyRelative("_markerId");
+            var allProp = e.FindPropertyRelative("_allMarkers");
+
+            // An All Markers row covers every id, so leaving it alongside
+            // explicit ones would make which entry wins ambiguous. Clear the
+            // flag and let the explicit rows carry their real sizes.
+            if (allProp != null && allProp.boolValue) allProp.boolValue = false;
+
+            if (idProp != null) present.Add(idProp.intValue);
+        }
+
+        int added = 0;
+
+        for (int id = 0; id <= CupCount; id++)
+        {
+            if (present.Contains(id)) continue;
+
+            entries.arraySize++;
+            var e = entries.GetArrayElementAtIndex(entries.arraySize - 1);
+
+            SetIfPresent(e, "_dictionary", AprilTag36H11);
+            SetBoolIfPresent(e, "_allMarkers", false);
+            SetIfPresent(e, "_markerId", id);
+            SetFloatIfPresent(e, "_physicalEdge",
+                id == BotMarkerId ? BotEdgeMetres : CupEdgeMetres);
+
+            added++;
+        }
+
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(db);
+        return added;
     }
 
     private static void SetIfPresent(SerializedProperty parent, string name, int value)

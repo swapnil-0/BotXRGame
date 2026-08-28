@@ -24,7 +24,10 @@ using Object = UnityEngine.Object;
 /// </summary>
 public static class SceneReport
 {
-    private const string OutPath = "../../docs/reports/scene-report.md";
+    // Relative to Application.dataPath, which is <repo>/unity/BotXRGame/Assets.
+    // Three levels up is the repo root; two lands in unity/ and puts the report
+    // somewhere nobody looks.
+    private const string OutPath = "../../../docs/reports/scene-report.md";
 
     [MenuItem("Tools/BotXRGame/Export Scene Report", false, 60)]
     public static void Export()

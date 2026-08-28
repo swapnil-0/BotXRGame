@@ -180,6 +180,18 @@ public static class SessionFlowSetup
             if (placer != null) tunerWires["placer"] = placer;
             Wire(tuner, tunerWires);
 
+            // Keep the button readout visible while tuning - the tuner is
+            // driven entirely by buttons, so hiding their state is exactly
+            // backwards.
+            var tunerSo = new SerializedObject(tuner);
+            var keepArr = tunerSo.FindProperty("keepVisible");
+            if (keepArr != null && keepArr.arraySize == 0)
+            {
+                keepArr.arraySize = 1;
+                keepArr.GetArrayElementAtIndex(0).objectReferenceValue = inputText;
+                tunerSo.ApplyModifiedProperties();
+            }
+
             done.Add("TornadoTuner on " + hudPanel.name +
                      " (trigger opens it once the arena is placed)");
 

@@ -47,6 +47,20 @@ public class TornadoTuner : MonoBehaviour
     public ArenaPlacer placer;
     public GhostBot ship;
 
+    [Header("Overlap")]
+    [Tooltip("Hide the HUD's other text while the tuner is open. The tuner " +
+             "needs the whole panel to list four parameters, so without this " +
+             "it draws straight over the status lines and both become " +
+             "unreadable.")]
+    public bool hideOtherHudText = true;
+
+    [Tooltip("Text to keep visible even while tuning - the button readout is " +
+             "worth keeping, since the tuner is driven entirely by buttons.")]
+    public TMPro.TextMeshProUGUI[] keepVisible;
+
+    private readonly List<TMPro.TextMeshProUGUI> hidden =
+        new List<TMPro.TextMeshProUGUI>();
+
     private class Param
     {
         public string Name;
@@ -160,8 +174,48 @@ public class TornadoTuner : MonoBehaviour
             if (open) ship.ResetMotion();
         }
 
+        SetOtherHudTextVisible(!open);
+
         if (!open && text != null) text.text = "";
         if (open) Flash("tuner open - trigger to close");
+    }
+
+    /// <summary>
+    /// Hide or restore the HUD's other text.
+    ///
+    /// Restores only what THIS hid, rather than enabling everything: some HUD
+    /// lines are legitimately off at other times, and blanket re-enabling would
+    /// switch them on as a side effect of closing the tuner.
+    /// </summary>
+    private void SetOtherHudTextVisible(bool visible)
+    {
+        if (!hideOtherHudText || text == null) return;
+
+        if (!visible)
+        {
+            hidden.Clear();
+            var parent = text.transform.parent != null ? text.transform.parent : text.transform;
+
+            foreach (var t in parent.GetComponentsInChildren<TMPro.TextMeshProUGUI>(false))
+            {
+                if (t == text || !t.enabled) continue;
+                if (IsKept(t)) continue;
+                t.enabled = false;
+                hidden.Add(t);
+            }
+        }
+        else
+        {
+            foreach (var t in hidden) if (t != null) t.enabled = true;
+            hidden.Clear();
+        }
+    }
+
+    private bool IsKept(TMPro.TextMeshProUGUI t)
+    {
+        if (keepVisible == null) return false;
+        foreach (var k in keepVisible) if (k == t) return true;
+        return false;
     }
 
     private void HandleNavigation()

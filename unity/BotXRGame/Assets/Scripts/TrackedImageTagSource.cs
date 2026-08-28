@@ -46,7 +46,9 @@ public class TrackedImageTagSource : MonoBehaviour
              "the two cannot fight over the same Transform.")]
     public ControllerHeldStandIn standInToDisable;
 
-    [Header("Status, read by the HUD")]
+    // --- status, read by the HUD -----------------------------------------
+    // Plain comment: [Header] is AttributeTargets.Field, so on a property it is
+    // CS0592. Second time I have made this exact mistake in this project.
     public bool Tracking { get; private set; }
     public string Status { get; private set; } = "no manager";
     public Vector3 LastPosition { get; private set; }

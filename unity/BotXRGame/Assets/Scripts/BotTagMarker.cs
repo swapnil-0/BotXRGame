@@ -106,7 +106,10 @@ public class BotTagMarker : MonoBehaviour
             // Runtime primitives get a material whose shader is stripped from
             // URP builds - magenta, and one eye only under instanced stereo.
             var sh = Shader.Find("Universal Render Pipeline/Unlit");
-            if (sh != null) mat = new Material(sh) { color = idleColour };
+            // totalColour: this material is the base for the dot and stem, and
+            // green is the marker's identity colour. The three arrows each
+            // tint their own copy of it.
+            if (sh != null) mat = new Material(sh) { color = totalColour };
         }
 
         var r = sphere.GetComponent<Renderer>();

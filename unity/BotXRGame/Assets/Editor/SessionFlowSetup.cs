@@ -23,6 +23,11 @@ public static class SessionFlowSetup
         var problems = new List<string>();
         var done = new List<string>();
 
+        // Looked up here rather than further down: several later blocks need
+        // it, and declaring it at first use meant an earlier block referenced
+        // it before it existed (CS0841).
+        var placer = Object.FindAnyObjectByType<ArenaPlacer>();
+
         var ipConfig = Object.FindAnyObjectByType<ROSIPConfig>();
         if (ipConfig == null)
         {
@@ -248,7 +253,6 @@ public static class SessionFlowSetup
         done.Add("ArmRosPublisher on " + armHost.name);
 
         // -------------------------------------------------- ShipTagFollower
-        var placer = Object.FindAnyObjectByType<ArenaPlacer>();
         Transform shipT = placer != null ? GetTransformField(placer, "ship") : null;
 
         GameObject followHost = shipT != null ? shipT.gameObject : menuHost;

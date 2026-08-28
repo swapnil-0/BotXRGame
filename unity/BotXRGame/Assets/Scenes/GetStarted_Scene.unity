@@ -6879,10 +6879,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputDebugHUD
   text: {fileID: 934651081}
-  swingAction: {fileID: 0}
-  kickAction: {fileID: 0}
-  placeAction: {fileID: 0}
-  moveAction: {fileID: 0}
+  swingAction: {fileID: -6014808934006281698, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  kickAction: {fileID: -9129376883668913906, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  placeAction: {fileID: -2413873833342219222, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  moveAction: {fileID: -7185608374540891126, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   pressThreshold: 0.5
   armPublisher: {fileID: 1320862976}
 --- !u!1 &2074976985

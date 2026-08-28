@@ -133,8 +133,25 @@ public static class SessionFlowSetup
         }
         else
         {
-            problems.Add("No ArmController in the scene - ArmRosPublisher added to " +
-                         ipConfig.name + " but swingAction must be assigned by hand.");
+            // No ArmController means no button to copy, so pick one directly.
+            // Left trigger: the right trigger is already placeAction, and both
+            // thumbsticks drive movement, so this is the obvious free control
+            // and putting the arm on a used button would be worse than leaving
+            // it empty.
+            var swing = FindActionReference("XRI Left Interaction", "Activate Value");
+            if (swing == null)
+                swing = FindActionReference("XRI Left Interaction", "Select Value");
+
+            if (swing != null)
+            {
+                armWires["swingAction"] = swing;
+                done.Add("ArmRosPublisher.swingAction -> left trigger (" + swing.name + ")");
+            }
+            else
+            {
+                problems.Add("No ArmController and could not find a left-trigger " +
+                             "action - assign ArmRosPublisher.swingAction by hand.");
+            }
         }
         Wire(armPub, armWires);
         done.Add("ArmRosPublisher on " + armHost.name);
@@ -155,9 +172,33 @@ public static class SessionFlowSetup
         Wire(follower, followWires);
         done.Add("ShipTagFollower on " + followHost.name);
 
-        problems.Add("ShipTagFollower.tagTransform must be assigned by hand - it " +
-                     "depends on which tracker you use. Any transform works for a " +
-                     "bench test; AprilTag mode falls back to joystick without it.");
+        // Create a stand-in the follower can track today. AprilTag mode is
+        // otherwise untestable until the tracker exists, and "untested until
+        // the morning of" is how a demo fails. Named so nobody mistakes it for
+        // real tracking, and only created if tagTransform is still empty.
+        if (GetTransformField(follower, "tagTransform") == null)
+        {
+            GameObject standIn = GameObject.Find("TagStandIn");
+            if (standIn == null)
+            {
+                standIn = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                standIn.name = "TagStandIn";
+                standIn.transform.localScale = Vector3.one * 0.08f;
+                standIn.transform.position = new Vector3(0f, 0.05f, 1.0f);
+                Object.DestroyImmediate(standIn.GetComponent<Collider>());
+                Undo.RegisterCreatedObjectUndo(standIn, "Create TagStandIn");
+            }
+
+            Wire(follower, new Dictionary<string, Object>
+            {
+                { "tagTransform", standIn.transform }
+            });
+
+            done.Add("ShipTagFollower.tagTransform -> TagStandIn (placeholder)");
+            problems.Add("TagStandIn is a PLACEHOLDER cube, not real tracking. Move " +
+                         "it in the Scene view to verify the ship follows, then " +
+                         "repoint tagTransform at the actual tracked transform.");
+        }
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         Selection.activeGameObject = modePanel;
@@ -214,6 +255,31 @@ public static class SessionFlowSetup
         var so = new SerializedObject(target);
         var p = so.FindProperty(field);
         return p != null ? p.objectReferenceValue as Transform : null;
+    }
+
+    /// <summary>
+    /// Find an InputActionReference by map and action name.
+    ///
+    /// References are sub-assets of the .inputactions file, so they are loaded
+    /// with LoadAllAssetsAtPath and matched on the action's own map/name rather
+    /// than the asset filename, which varies by Unity version.
+    /// </summary>
+    private static Object FindActionReference(string mapName, string actionName)
+    {
+        foreach (var guid in AssetDatabase.FindAssets("t:InputActionAsset"))
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            foreach (var sub in AssetDatabase.LoadAllAssetsAtPath(path))
+            {
+                var r = sub as UnityEngine.InputSystem.InputActionReference;
+                if (r == null || r.action == null) continue;
+                if (r.action.actionMap == null) continue;
+
+                if (r.action.actionMap.name == mapName && r.action.name == actionName)
+                    return r;
+            }
+        }
+        return null;
     }
 
     private static T GetOrAdd<T>(GameObject go) where T : Component

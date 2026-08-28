@@ -278,6 +278,41 @@ public class Tornado : MonoBehaviour
     /// cannot drift from the real danger zone - which it already did once,
     /// rendering at 0.18 m while the radius was 0.146.
     /// </summary>
+    /// <summary>
+    /// The world velocity this tornado would apply at an arbitrary point.
+    ///
+    /// Split out so the pull can act on the REAL robot, whose position comes
+    /// from a tracked tag rather than from a GhostBot. Same maths the ship
+    /// feels, so both modes are pulled identically rather than by two
+    /// implementations that drift apart.
+    /// </summary>
+    public Vector3 VelocityAt(Vector3 worldPos)
+    {
+        Vector3 delta = worldPos - transform.position;
+        delta.y = 0f;
+        float d = delta.magnitude;
+
+        if (d < 1e-4f || d >= influenceRadius) return Vector3.zero;
+
+        float falloff = Mathf.Pow(1f - (d / influenceRadius), falloffExponent);
+        falloff = Mathf.Max(falloff, edgePullFraction);
+        float s = Strength * falloff;
+
+        Vector3 inward = -delta / d;
+        Vector3 tangent = Vector3.Cross(Vector3.up, inward) * (clockwise ? 1f : -1f);
+
+        return inward * (suckMetersPerSecond * s) + tangent * (swirlMetersPerSecond * s);
+    }
+
+    /// <summary>Sum of every live tornado's pull at a point.</summary>
+    public static Vector3 TotalVelocityAt(Vector3 worldPos)
+    {
+        Vector3 sum = Vector3.zero;
+        foreach (var t in FindObjectsByType<Tornado>(FindObjectsInactive.Include))
+            if (t != null && t.isActiveAndEnabled) sum += t.VelocityAt(worldPos);
+        return sum;
+    }
+
     public void ApplyRadius(float radius)
     {
         influenceRadius = Mathf.Max(0.01f, radius);

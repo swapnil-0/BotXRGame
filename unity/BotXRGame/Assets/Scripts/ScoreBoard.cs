@@ -45,6 +45,7 @@ public class ScoreBoard : MonoBehaviour
     private TrackedImageTagSource tagSource;
     private ShipTagFollower follower;
     private TagCupTracker cupTracker;
+    private BotCommandMixer mixer;
     [Tooltip("Fallback only. The live value is read from an actual cup, so " +
              "this cannot drift out of sync with the real collect radius the " +
              "way a hardcoded 0.28 did.")]
@@ -177,25 +178,36 @@ public class ScoreBoard : MonoBehaviour
         // being seen rather than the stand-in being followed.
         if (GameMode.IsAprilTag)
         {
-            if (tagSource == null) tagSource = FindAnyObjectByType<TrackedImageTagSource>();
-            sb.AppendFormat("tag {0}\n",
-                tagSource != null ? tagSource.Status : "no TrackedImageTagSource");
-
-            // Offset from the tag to the ship's visible centre, in world axes.
-            // "In front rather than above" is a judgement about depth made
-            // through passthrough, which has already been wrong twice in this
-            // project. This turns it into three numbers: up should be the
-            // hover height and the other two should be ~0.
+            // AprilTag mode shows the ROBOT's story, not the ship's. The
+            // ship-centric lines below are meaningless here - the ship is
+            // hidden - and printing them was most of why this board got
+            // crowded enough to be unreadable.
             if (cupTracker == null) cupTracker = FindAnyObjectByType<TagCupTracker>();
-            if (cupTracker != null) sb.Append(cupTracker.BuildReport());
+            if (mixer == null) mixer = FindAnyObjectByType<BotCommandMixer>();
 
-            if (follower == null) follower = FindAnyObjectByType<ShipTagFollower>();
-            if (follower != null && follower.tagTransform != null)
+            sb.Length = 0;      // drop the ship lines entirely
+
+            if (mixer != null)
             {
-                Vector3 d = c - follower.tagTransform.position;
-                sb.AppendFormat("tag->ship  right {0:F2}  up {1:F2}  fwd {2:F2}  (hover {3:F2})\n",
-                    d.x, d.y, d.z, follower.hoverHeight);
+                sb.AppendFormat("{0}  |  {1}\n", mixer.CurrentPhase, mixer.Status);
+                sb.AppendFormat("cmd {0:F2}  stick {1:F2}  tornado {2:F2}\n",
+                    mixer.CommandVector.magnitude,
+                    mixer.StickVector.magnitude,
+                    mixer.TornadoVector.magnitude);
             }
+            else
+            {
+                sb.Append("no BotCommandMixer\n");
+            }
+
+            if (cupTracker != null)
+            {
+                sb.AppendFormat("bot tag {0}\n",
+                    cupTracker.BotTracked ? "TRACKED" : "not visible");
+                sb.Append(cupTracker.BuildReport());
+            }
+
+            return sb.ToString();
         }
 
         if (CollectibleCup.Active.Count == 0)

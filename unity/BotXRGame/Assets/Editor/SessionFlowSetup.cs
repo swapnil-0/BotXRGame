@@ -319,8 +319,48 @@ public static class SessionFlowSetup
         var robotCtl = Object.FindAnyObjectByType<RobotController>();
         if (robotCtl != null)
         {
-            var drive = GetOrAdd<BotStartupDrive>(robotCtl.gameObject);
-            done.Add("BotStartupDrive on " + robotCtl.name + " (drives to start line)");
+            // BotCommandMixer supersedes BotStartupDrive: it owns all three
+            // phases rather than only the approach, so one component decides
+            // what the robot is sent at any moment. Two components writing the
+            // same command would be the ship-drift bug again, in a place where
+            // the consequence is a real robot moving.
+            var stale = robotCtl.GetComponent<BotStartupDrive>();
+            if (stale != null)
+            {
+                Object.DestroyImmediate(stale, true);
+                done.Add("removed BotStartupDrive (superseded by BotCommandMixer)");
+            }
+
+            var mixer = GetOrAdd<BotCommandMixer>(robotCtl.gameObject);
+            var mixWires = new Dictionary<string, Object>();
+            var tracker = Object.FindAnyObjectByType<TagCupTracker>();
+            if (tracker != null) mixWires["tagTracker"] = tracker;
+            mixWires["robot"] = robotCtl;
+            if (placer != null) mixWires["placer"] = placer;
+            var arenaRun = Object.FindAnyObjectByType<ArenaRun>();
+            if (arenaRun != null) mixWires["run"] = arenaRun;
+            Wire(mixer, mixWires);
+            done.Add("BotCommandMixer on " + robotCtl.name +
+                     " (approach -> START -> stick + tornado)");
+
+            // Floating START button, on its own object so it can sit over the
+            // arena without belonging to any canvas.
+            var startGo = GameObject.Find("StartButton");
+            if (startGo == null)
+            {
+                startGo = new GameObject("StartButton");
+                Undo.RegisterCreatedObjectUndo(startGo, "Create StartButton");
+            }
+            var startBtn = GetOrAdd<FloatingStartButton>(startGo);
+            var btnWires = new Dictionary<string, Object> { { "mixer", mixer } };
+            if (arenaRun != null) btnWires["run"] = arenaRun;
+            if (placer != null)
+            {
+                var ro = GetTransformField(placer, "rayOrigin");
+                if (ro != null) btnWires["rayOrigin"] = ro;
+            }
+            Wire(startBtn, btnWires);
+            done.Add("FloatingStartButton (point and trigger at the start line)");
         }
 
         // Make the stand-in reachable from inside the headset. A cube you can
@@ -349,22 +389,30 @@ public static class SessionFlowSetup
                 done.Add("TagStandIn box hidden (marker + arrow replace it)");
             }
 
-            var botMarker = GetOrAdd<BotTagMarker>(standInGo);
-            var markerWires = new Dictionary<string, Object>
+            // Marker moves onto its own object, not TagStandIn. It now follows
+            // tag id 0 through TagCupTracker rather than whatever TagStandIn
+            // holds - binding it to the stand-in is what put the bot marker on
+            // a cup once cup tags existed.
+            var staleMarker = standInGo.GetComponent<BotTagMarker>();
+            if (staleMarker != null) Object.DestroyImmediate(staleMarker, true);
+
+            var markerGo = GameObject.Find("BotTagMarker");
+            if (markerGo == null)
             {
-                { "tagTransform", standInGo.transform },
-            };
-            var rc = Object.FindAnyObjectByType<RobotController>();
-            if (rc != null)
-            {
-                markerWires["robot"] = rc;
-                var bsd = rc.GetComponent<BotStartupDrive>();
-                if (bsd != null) markerWires["startupDrive"] = bsd;
+                markerGo = new GameObject("BotTagMarker");
+                Undo.RegisterCreatedObjectUndo(markerGo, "Create BotTagMarker");
             }
+
+            var botMarker = GetOrAdd<BotTagMarker>(markerGo);
+            var markerWires = new Dictionary<string, Object>();
+            var tracker2 = Object.FindAnyObjectByType<TagCupTracker>();
+            if (tracker2 != null) markerWires["tagTracker"] = tracker2;
+            var mix = Object.FindAnyObjectByType<BotCommandMixer>();
+            if (mix != null) markerWires["mixer"] = mix;
             var cupMat = placer != null ? GetObjectFieldGeneric(placer, "cupMaterial") : null;
             if (cupMat != null) markerWires["markerMaterial"] = cupMat;
             Wire(botMarker, markerWires);
-            done.Add("BotTagMarker on TagStandIn (green dot + commanded-heading arrow)");
+            done.Add("BotTagMarker follows tag id 0 (arrow = commanded velocity)");
         }
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
@@ -457,6 +505,20 @@ public static class SessionFlowSetup
             Overwrite(inputHud, "placeAction", place);
             Overwrite(inputHud, "moveAction", move);
             done.Add("InputDebugHUD: A/B/trigger/stick");
+        }
+
+        var botMixer = Object.FindAnyObjectByType<BotCommandMixer>();
+        if (botMixer != null)
+        {
+            Overwrite(botMixer, "moveAction", move);
+            done.Add("BotCommandMixer.moveAction (stick drives the real robot)");
+        }
+
+        var startButton = Object.FindAnyObjectByType<FloatingStartButton>();
+        if (startButton != null)
+        {
+            Overwrite(startButton, "pressAction", place);   // trigger
+            done.Add("FloatingStartButton.pressAction (trigger)");
         }
 
         var tuner = Object.FindAnyObjectByType<TornadoTuner>();

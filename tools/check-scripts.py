@@ -97,6 +97,12 @@ def check_attr_on_property(path):
         s = ln.strip()
         if not s.startswith("[") or not any(a in s for a in ATTRS):
             continue
+
+        # Attribute and declaration on ONE line - "[Range(0,1)] public float x;"
+        # - already carries its own target, so looking at the NEXT line finds an
+        # unrelated member. That produced a false CS0592 against a correct file.
+        if s.rstrip().endswith(";"):
+            continue
         for nxt in lines[i + 1:]:
             t = nxt.strip()
             if not t or t.startswith("[") or t.startswith("//"):

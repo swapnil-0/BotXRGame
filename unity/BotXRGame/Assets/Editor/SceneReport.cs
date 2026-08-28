@@ -245,10 +245,22 @@ public static class SceneReport
             sb.AppendLine("5 ARTrackedImageManager              : on " +
                           HierarchyPath(tim.transform) +
                           (tim.enabled ? " (enabled)" : "  <-- DISABLED"));
-            sb.AppendLine("6 manager referenceLibrary           : " +
-                (tim.referenceLibrary != null
-                    ? tim.referenceLibrary.name
-                    : "NOT ASSIGNED  <-- assign the generated library"));
+            // referenceLibrary is IReferenceImageLibrary, which has no name -
+            // only the concrete XRReferenceImageLibrary asset does. Report the
+            // image count as well, since an assigned but EMPTY library is the
+            // failure that looks most like working configuration.
+            var lib = tim.referenceLibrary;
+            var libAsset = lib as UnityEngine.XR.ARSubsystems.XRReferenceImageLibrary;
+
+            string libDesc;
+            if (lib == null)
+                libDesc = "NOT ASSIGNED  <-- assign the generated library";
+            else if (libAsset != null)
+                libDesc = libAsset.name + "  (" + libAsset.count + " images)";
+            else
+                libDesc = "runtime library (" + lib.count + " images)";
+
+            sb.AppendLine("6 manager referenceLibrary           : " + libDesc);
         }
 
         // 7. our adapter

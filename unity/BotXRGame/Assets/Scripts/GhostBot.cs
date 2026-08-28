@@ -172,6 +172,17 @@ public class GhostBot : MonoBehaviour
         ExternalVelocity = Vector3.zero;
     }
 
+    /// <summary>
+    /// When true this script stops integrating the stick and stops writing the
+    /// transform - something else owns the pose. Set by ShipTagFollower in
+    /// AprilTag mode, where the ship's position comes from the tracked robot
+    /// and the stick drives the real robot over ROS instead.
+    ///
+    /// LinearX/AngularZ keep updating so /cmd_vel and the HUD still reflect
+    /// what the stick is asking for.
+    /// </summary>
+    public bool PoseDrivenExternally { get; set; }
+
     void Update()
     {
         float dt = Time.deltaTime;
@@ -241,8 +252,11 @@ public class GhostBot : MonoBehaviour
 
         // Yaw first, then translate along the new heading - this is the same
         // integration order bot_sim uses, so the two stay in agreement.
-        transform.Rotate(0f, -AngularZ * dt * Mathf.Rad2Deg, 0f);
-        transform.Translate(0f, 0f, LinearX * dt, Space.Self);
+        if (!PoseDrivenExternally)
+        {
+            transform.Rotate(0f, -AngularZ * dt * Mathf.Rad2Deg, 0f);
+            transform.Translate(0f, 0f, LinearX * dt, Space.Self);
+        }
 
         // External drift applies even while the arm has the wheels locked:
         // a tornado should still be able to shove you off your shot.

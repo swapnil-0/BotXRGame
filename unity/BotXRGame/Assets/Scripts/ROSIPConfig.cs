@@ -33,11 +33,48 @@ public class ROSIPConfig : MonoBehaviour
     private const string DEFAULT_IP = "192.168.1.100";
     private const int DEFAULT_PORT = 10000;   // ros_tcp_endpoint default
 
+    [Tooltip("Leave ON when a ModeSelectMenu exists: the mode menu must be the " +
+             "first screen, and this panel waits to be revealed. Turn OFF only " +
+             "for a build with no menu, where this should appear immediately.")]
+    public bool waitForModeSelection = true;
+
+    /// <summary>Hide everything; the mode menu owns the screen until it calls back.</summary>
+    public void HideUntilModeChosen()
+    {
+        if (ipInputPanel != null) ipInputPanel.SetActive(false);
+        if (hudPanel != null) hudPanel.SetActive(false);
+    }
+
+    /// <summary>Show the IP/port panel. Called by ModeSelectMenu once a mode is picked.</summary>
+    public void ShowConfig()
+    {
+        if (ipInputPanel != null) ipInputPanel.SetActive(true);
+        if (hudPanel != null) hudPanel.SetActive(false);
+    }
+
+    /// <summary>
+    /// Bypass the connect screen entirely - Virtual Bot needs no robot.
+    /// Reuses OnSkipPressed so there is one code path into the HUD rather than
+    /// two that can drift apart.
+    /// </summary>
+    public void SkipStraightToHud()
+    {
+        OnSkipPressed();
+    }
+
     void Start()
     {
-        // Show connection panel first, hide HUD
-        ipInputPanel.SetActive(true);
-        hudPanel.SetActive(false);
+        // The mode menu is the first screen, so this panel does not show itself
+        // any more. Without this both panels appeared at once, stacked.
+        if (waitForModeSelection)
+        {
+            HideUntilModeChosen();
+        }
+        else
+        {
+            ipInputPanel.SetActive(true);
+            hudPanel.SetActive(false);
+        }
 
         // Restore last used IP
         ipInputField.text = PlayerPrefs.GetString(PREF_IP, DEFAULT_IP);

@@ -658,6 +658,26 @@ public class ArenaPlacer : MonoBehaviour
             finishMarker.position = new Vector3(finish.x, floorY + 0.005f, finish.z);
         }
 
+        // In AprilTag mode there is nothing to place: the ship's position comes
+        // from the tag on the robot, so asking the player to aim it would put
+        // it somewhere the tracker immediately overrides.
+        if (GameMode.IsAprilTag)
+        {
+            Debug.Log("[Arena] AprilTag mode - skipping ship placement, " +
+                      "pose comes from the tracked tag");
+
+            if (ship != null) ship.gameObject.SetActive(true);
+
+            // Start the run at the arena's near edge. The follower moves the
+            // ship to the tag on its first tracked frame anyway; this only
+            // decides where the run is anchored until then.
+            shipAimPoint = new Vector3(
+                arenaOrigin.x, arenaFloorY + hoverHeight, arenaOrigin.z);
+
+            CommitShip();
+            return;
+        }
+
         CurrentPhase = Phase.Ship;
         // Consume this press so the same trigger pull cannot immediately place
         // the ship as well.

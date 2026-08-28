@@ -217,6 +217,13 @@ public class ScoreBoard : MonoBehaviour
                     sb.AppendFormat(" {0}{1}",
                         kv.Key, kv.Key == cupTracker.botMarkerId ? "(BOT)" : "");
                 sb.Append("\n");
+
+                // Where the app believes the bot tag is. If this does not match
+                // the tag you are looking at, the marker is not misplaced - it
+                // is on a different id-0 tag, and no amount of staring at the
+                // marker will reveal that.
+                if (cupTracker.SeenTags.TryGetValue(cupTracker.botMarkerId, out var bp))
+                    sb.AppendFormat("bot tag at {0:F2},{1:F2},{2:F2}\n", bp.x, bp.y, bp.z);
             }
 
             // Per-cup detail only; the counts and bot state are in the body

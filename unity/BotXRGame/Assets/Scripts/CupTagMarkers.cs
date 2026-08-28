@@ -25,7 +25,11 @@ public class CupTagMarkers : MonoBehaviour
     public float height = 0.16f;
 
     public float dotSize = 0.045f;
-    public float labelSize = 0.06f;
+
+    [Tooltip("World-space text size. The first value was too small to read " +
+             "through passthrough at arm's length, which made the labels " +
+             "useless for the one job they have - saying which cup is which.")]
+    public float labelSize = 0.22f;
 
     [Header("Colours")]
     public Color uprightColour = new Color(0.25f, 0.9f, 0.4f);
@@ -153,8 +157,13 @@ public class CupTagMarkers : MonoBehaviour
         label.fontSize = labelSize * 20f;
         label.alignment = TMPro.TextAlignmentOptions.Center;
 
+        // Wide enough for "#10 DOWN" without wrapping, and wrapping disabled:
+        // a wrapped label at this size becomes a block of text hanging over the
+        // arena rather than a tag.
+        label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+
         var rt = label.GetComponent<RectTransform>();
-        if (rt != null) rt.sizeDelta = new Vector2(0.2f, 0.12f);
+        if (rt != null) rt.sizeDelta = new Vector2(0.6f, 0.3f);
 
         var marker = new Marker { Root = root, Dot = sphere.transform, Label = label, Mat = mat };
         markers[id] = marker;

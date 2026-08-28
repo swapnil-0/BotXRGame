@@ -401,6 +401,17 @@ public class ArenaPlacer : MonoBehaviour
     {
         CollectibleCup.ResetAll();
 
+        // No virtual cups in AprilTag mode: the real cups are on the floor
+        // wearing tags. Spawning green cylinders alongside them puts two sets
+        // of "cups" in the same arena - one physical and scored by tag, one
+        // virtual and scored by proximity - and there is no way to tell from
+        // inside the headset which set the score refers to.
+        if (GameMode.IsAprilTag)
+        {
+            Debug.Log("[Cup] AprilTag mode - real cups come from tags, none spawned");
+            return;
+        }
+
         // Tell the cups and the board which GhostBot is the real one. Both
         // used to find it themselves and both found the wrong one.
         var playerShip = ship != null ? ship.GetComponent<GhostBot>() : null;

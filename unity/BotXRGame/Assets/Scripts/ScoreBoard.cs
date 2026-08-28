@@ -189,7 +189,7 @@ public class ScoreBoard : MonoBehaviour
 
             if (mixer != null)
             {
-                sb.AppendFormat("{0}  |  {1}\n", mixer.CurrentPhase, mixer.Status);
+                sb.AppendFormat("{0}\n", mixer.Status);
                 sb.AppendFormat("cmd {0:F2}  stick {1:F2}  tornado {2:F2}\n",
                     mixer.CommandVector.magnitude,
                     mixer.StickVector.magnitude,
@@ -197,15 +197,12 @@ public class ScoreBoard : MonoBehaviour
             }
             else
             {
-                sb.Append("no BotCommandMixer\n");
+                sb.Append("no BotCommandMixer - run Wire Session Flow\n");
             }
 
-            if (cupTracker != null)
-            {
-                sb.AppendFormat("bot tag {0}\n",
-                    cupTracker.BotTracked ? "TRACKED" : "not visible");
-                sb.Append(cupTracker.BuildReport());
-            }
+            // Per-cup detail only; the counts and bot state are in the body
+            // line above, and printing them twice is what made this crowded.
+            if (cupTracker != null) sb.Append(cupTracker.BuildReport());
 
             return sb.ToString();
         }
@@ -237,6 +234,36 @@ public class ScoreBoard : MonoBehaviour
 
         int collected = CollectibleCup.CollectedCount;
         int total = collected + CollectibleCup.Remaining;
+
+        // AprilTag mode retitles the board rather than sharing it. The headline
+        // and body were still reporting the VIRTUAL ship's cups and captures,
+        // which are meaningless with the ship hidden - and the debug block was
+        // drawing over them, so two sets of numbers competed for the same
+        // space and neither was readable.
+        if (GameMode.IsAprilTag)
+        {
+            if (cupTracker == null) cupTracker = FindAnyObjectByType<TagCupTracker>();
+            if (mixer == null) mixer = FindAnyObjectByType<BotCommandMixer>();
+
+            if (headlineText != null)
+                headlineText.text = mixer != null
+                    ? mixer.CurrentPhase.ToString().ToUpper()
+                    : "NO MIXER";
+
+            if (bodyText != null)
+            {
+                int cups = cupTracker != null ? cupTracker.CupCount : 0;
+                int down = cupTracker != null ? cupTracker.ToppledCount : 0;
+                bodyText.text = string.Format("cups {0}   toppled {1}   bot {2}",
+                    cups, down,
+                    cupTracker != null && cupTracker.BotTracked ? "OK" : "LOST");
+            }
+
+            if (debugText != null)
+                debugText.text = showDebug ? BuildDebug() : "";
+
+            return;
+        }
 
         if (headlineText != null)
         {

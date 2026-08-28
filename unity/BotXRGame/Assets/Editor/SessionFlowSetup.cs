@@ -314,6 +314,23 @@ public static class SessionFlowSetup
             if (tim != null)
                 Wire(cupTracker, new Dictionary<string, Object> { { "trackedImageManager", tim } });
             done.Add("TagCupTracker on " + origin.name + " (id 0 = bot, others = cups)");
+
+            // Labelled marker over each detected cup. The debug list names cup
+            // ids but not which physical cup each is - and a cup that never
+            // resolves is simply absent from the list, which is invisible
+            // unless you are counting rows.
+            var cupMarkersGo = GameObject.Find("CupTagMarkers");
+            if (cupMarkersGo == null)
+            {
+                cupMarkersGo = new GameObject("CupTagMarkers");
+                Undo.RegisterCreatedObjectUndo(cupMarkersGo, "Create CupTagMarkers");
+            }
+            var cupMarkers = GetOrAdd<CupTagMarkers>(cupMarkersGo);
+            var cmWires = new Dictionary<string, Object> { { "tracker", cupTracker } };
+            var cupMat2 = placer != null ? GetObjectFieldGeneric(placer, "cupMaterial") : null;
+            if (cupMat2 != null) cmWires["markerMaterial"] = cupMat2;
+            Wire(cupMarkers, cmWires);
+            done.Add("CupTagMarkers (labelled #id + up/DOWN over each cup)");
         }
 
         var robotCtl = Object.FindAnyObjectByType<RobotController>();

@@ -173,7 +173,6 @@ public class TagCupTracker : MonoBehaviour
         if (cups.Count == 0) return "cups: none seen yet";
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendFormat("cups {0}  toppled {1}\n", cups.Count, ToppledCount);
 
         var ids = new List<int>(cups.Keys);
         ids.Sort();

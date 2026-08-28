@@ -41,7 +41,12 @@ public static class MarkerTrackingSetup
     // printed tag in hand that the headset ignores, is exactly the kind of
     // dead end worth pre-empting.
     private const int CupCount = 10;             // ids 1..10
-    private const float CupEdgeMetres = 0.040f;  // MUST match what you print
+
+    // Same 100 mm as the bot tag - every marker is printed at one size.
+    // Kept as a separate constant rather than reusing BotEdgeMetres so the two
+    // can diverge later without hunting through the code: a cup top is small,
+    // and 100 mm tags on cups may yet prove impractical.
+    private const float CupEdgeMetres = 0.100f;  // MUST match what you print
 
     [MenuItem("Tools/BotXRGame/Set Up AprilTag Tracking", false, 42)]
     public static void SetUp()

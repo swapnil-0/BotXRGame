@@ -125,7 +125,7 @@ public class ScoreBoard : MonoBehaviour
 
         // Tornado count matters: more than one per expected spawn means there
         // is a spare in the scene and the numbers above may describe it.
-        int tornadoCount = FindObjectsByType<Tornado>(FindObjectsSortMode.None).Length;
+        int tornadoCount = FindObjectsByType<Tornado>(FindObjectsInactive.Include).Length;
 
         if (tornado == null)
         {
@@ -147,7 +147,7 @@ public class ScoreBoard : MonoBehaviour
 
         // Name and scene count included deliberately: a GhostBot count above 1
         // is what let the board silently report a decoy ship for a whole run.
-        int shipCount = FindObjectsByType<GhostBot>(FindObjectsSortMode.None).Length;
+        int shipCount = FindObjectsByType<GhostBot>(FindObjectsInactive.Include).Length;
         Vector3 c = ship.Center;
 
         // ext = world-space velocity being applied by something OTHER than the

@@ -422,7 +422,7 @@ public class ArenaPlacer : MonoBehaviour
             playerShip.gameObject.AddComponent<ShipVisualLock>();
         }
 
-        int ghostBots = FindObjectsByType<GhostBot>(FindObjectsSortMode.None).Length;
+        int ghostBots = FindObjectsByType<GhostBot>(FindObjectsInactive.Include).Length;
         if (ghostBots > 1)
         {
             Debug.LogWarningFormat(

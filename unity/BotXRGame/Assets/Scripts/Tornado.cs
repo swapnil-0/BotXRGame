@@ -118,7 +118,15 @@ public class Tornado : MonoBehaviour
     [Tooltip("Strength floor. Above about 0.3 there is no free window, so " +
              "standing still stops being a viable strategy and the player has " +
              "to steer the whole way.")]
-    public float minStrength = 0.35f;
+    public float minStrength = 0.6f;
+
+    [Tooltip("Floor under the distance falloff, as a fraction of full pull.\n\n" +
+             "Without it the force reaches zero at the rim - the exact place " +
+             "the player meets the tornado - so it could be brushed past with " +
+             "nothing felt. At 0.4 the boundary itself has weight, which is " +
+             "what makes the pull constant rather than a surprise at the core.")]
+    [Range(0f, 1f)]
+    public float edgePullFraction = 0.4f;
     [Tooltip("Phase offset, so multiple tornadoes are not synchronised.")]
     public float phaseOffset = 0f;
 
@@ -222,11 +230,13 @@ public class Tornado : MonoBehaviour
 
         if (d < 1e-4f) return;
 
-        // Strongest at the centre, nothing at the edge. The exponent shapes how
-        // quickly it dies off: below 1 keeps meaningful force out near the rim,
-        // which is what makes the vortex feel like it grabs you on approach
-        // rather than only misbehaving at the very centre.
+        // Strongest at the centre, weakest at the rim - but never zero inside
+        // the radius. With a plain falloff the pull vanished exactly where the
+        // player first meets it, so the tornado could be skirted without
+        // feeling anything and only became real at the core. edgePullFraction
+        // puts a floor under it: crossing the boundary is now always felt.
         float falloff = Mathf.Pow(1f - (d / influenceRadius), falloffExponent);
+        falloff = Mathf.Max(falloff, edgePullFraction);
         float s = Strength * falloff;
 
         Vector3 inward = -delta / d;

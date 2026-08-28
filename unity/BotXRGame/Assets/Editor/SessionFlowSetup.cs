@@ -305,6 +305,24 @@ public static class SessionFlowSetup
             problems.Add("TagStandIn is a PLACEHOLDER cube, not real tracking.");
         }
 
+        // ------------------------------------------- cup tags and bot marker
+        var origin = Object.FindAnyObjectByType<Unity.XR.CoreUtils.XROrigin>();
+        if (origin != null)
+        {
+            var cupTracker = GetOrAdd<TagCupTracker>(origin.gameObject);
+            var tim = origin.GetComponent<UnityEngine.XR.ARFoundation.ARTrackedImageManager>();
+            if (tim != null)
+                Wire(cupTracker, new Dictionary<string, Object> { { "trackedImageManager", tim } });
+            done.Add("TagCupTracker on " + origin.name + " (id 0 = bot, others = cups)");
+        }
+
+        var robotCtl = Object.FindAnyObjectByType<RobotController>();
+        if (robotCtl != null)
+        {
+            var drive = GetOrAdd<BotStartupDrive>(robotCtl.gameObject);
+            done.Add("BotStartupDrive on " + robotCtl.name + " (drives to start line)");
+        }
+
         // Make the stand-in reachable from inside the headset. A cube you can
         // only drag in the Scene view is useless in a build, which is why
         // AprilTag mode looked frozen with the ship parked on it.
@@ -320,6 +338,33 @@ public static class SessionFlowSetup
             }
             Wire(held, heldWires);
             done.Add("TagStandIn follows the controller (point to place the 'tag')");
+
+            // Green dot + heading arrow replacing the cube. Hide the cube's own
+            // renderer: it stood in for a robot, and with a real robot on the
+            // floor a floating box is just clutter.
+            var boxRenderer = standInGo.GetComponent<MeshRenderer>();
+            if (boxRenderer != null && boxRenderer.enabled)
+            {
+                boxRenderer.enabled = false;
+                done.Add("TagStandIn box hidden (marker + arrow replace it)");
+            }
+
+            var botMarker = GetOrAdd<BotTagMarker>(standInGo);
+            var markerWires = new Dictionary<string, Object>
+            {
+                { "tagTransform", standInGo.transform },
+            };
+            var rc = Object.FindAnyObjectByType<RobotController>();
+            if (rc != null)
+            {
+                markerWires["robot"] = rc;
+                var bsd = rc.GetComponent<BotStartupDrive>();
+                if (bsd != null) markerWires["startupDrive"] = bsd;
+            }
+            var cupMat = placer != null ? GetObjectFieldGeneric(placer, "cupMaterial") : null;
+            if (cupMat != null) markerWires["markerMaterial"] = cupMat;
+            Wire(botMarker, markerWires);
+            done.Add("BotTagMarker on TagStandIn (green dot + commanded-heading arrow)");
         }
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
@@ -417,7 +462,11 @@ public static class SessionFlowSetup
         var tuner = Object.FindAnyObjectByType<TornadoTuner>();
         if (tuner != null)
         {
-            Overwrite(tuner, "toggleAction", place);   // trigger, free after placement
+            // Grip, not the index trigger. The trigger collides with the system
+            // screenshot gesture, so opening the tuner and capturing what it
+            // showed were mutually exclusive.
+            var menu = FindActionReference("Bot", "Menu");
+            Overwrite(tuner, "toggleAction", menu != null ? menu : place);
             Overwrite(tuner, "moveAction", move);
             Overwrite(tuner, "saveAction", swing);     // A
             Overwrite(tuner, "resetAction", kick);     // B

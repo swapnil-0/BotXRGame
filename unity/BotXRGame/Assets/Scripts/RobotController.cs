@@ -59,6 +59,32 @@ public class RobotController : MonoBehaviour
             connectionStatus = "Connecting / Retrying...";
     }
 
+    // --- external command override ---------------------------------------
+    private bool hasExternalCommand;
+    private float externalLinear, externalAngular;
+
+    /// <summary>True while something other than the stick is driving.</summary>
+    public bool IsExternallyDriven => hasExternalCommand;
+
+    /// <summary>
+    /// Take over the robot. Values are in the same units the stick produces,
+    /// so they flow through the existing publish path unchanged.
+    /// </summary>
+    public void SetExternalCommand(float linear, float angular)
+    {
+        hasExternalCommand = true;
+        externalLinear = linear;
+        externalAngular = angular;
+    }
+
+    /// <summary>Hand control back to the stick.</summary>
+    public void ClearExternalCommand()
+    {
+        hasExternalCommand = false;
+        externalLinear = 0f;
+        externalAngular = 0f;
+    }
+
     void Update()
     {
         // Read controller input
@@ -77,6 +103,16 @@ public class RobotController : MonoBehaviour
         // Map to Twist values
         linearX = input.y * linearSpeed;
         angularZ = -input.x * angularSpeed;
+
+        // An external driver (BotStartupDrive) overrides the stick entirely
+        // while it has control. Overriding rather than blending on purpose:
+        // mixing a player's input with an automatic approach gives a robot that
+        // fights itself, and the resulting motion is impossible to attribute.
+        if (hasExternalCommand)
+        {
+            linearX = externalLinear;
+            angularZ = externalAngular;
+        }
 
         // Move spaceship in simulation
         if (moveInSimulation)

@@ -31,6 +31,14 @@ public class ModeSelectMenu : MonoBehaviour
     public TMPro.TextMeshProUGUI titleText;
     public TMPro.TextMeshProUGUI helpText;
 
+    [Tooltip("Let A and B pick the mode as well as the on-screen buttons.\n\n" +
+             "OFF by default now that pointer selection is confirmed working. " +
+             "It was a safety net for the case where UI raycasting failed and " +
+             "the menu became a dead end; that case did not happen, and the " +
+             "buttons behave like Connect/Skip, which is what everything else " +
+             "in this app uses.")]
+    public bool allowButtonSelection = false;
+
     [Header("Button fallback")]
     [Tooltip("A button - selects Virtual Bot without needing a UI raycast.\n\n" +
              "World-space UI buttons only work if an EventSystem, a UI input " +
@@ -69,9 +77,12 @@ public class ModeSelectMenu : MonoBehaviour
         if (titleText != null) titleText.text = "Select mode";
         if (helpText != null)
         {
-            helpText.text =
-                "A  Virtual Bot - fly the ship, no robot needed\n" +
-                "B  AprilTag - ship follows the tag on the real robot";
+            helpText.text = allowButtonSelection
+                ? "A  Virtual Bot - fly the ship, no robot needed\n" +
+                  "B  AprilTag - drive the real robot"
+                : "Point and pull the trigger to choose\n" +
+                  "Virtual Bot - fly the ship, no robot needed\n" +
+                  "AprilTag - drive the real robot";
         }
 
         if (virtualBotButton != null)
@@ -97,6 +108,8 @@ public class ModeSelectMenu : MonoBehaviour
 
     void Update()
     {
+        if (!allowButtonSelection) return;
+
         // Only while the menu is up; afterwards these are the arm buttons.
         if (GameMode.Chosen) return;
         if (modePanel != null && !modePanel.activeSelf) return;

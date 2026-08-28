@@ -98,6 +98,14 @@ public class ArenaRun : MonoBehaviour
     public event Action<float> OnFinished;    // elapsed seconds
 
     private Vector3 startPoint, forward, finishPoint;
+
+    /// <summary>
+    /// Midpoint of the near edge. Exposed so the real robot can be driven to
+    /// the same place the virtual ship starts from - both modes must run the
+    /// identical course or their times mean different things.
+    /// </summary>
+    public Vector3 StartPoint => startPoint;
+    public Vector3 CourseForward => forward;
     private float arenaSize, floorY, hoverHeight;
     private Transform playAreaAnchor;
 

@@ -53,8 +53,34 @@ public class ShipTagFollower : MonoBehaviour
     private float lastMoveTime;
     private bool everTracked;
 
+    [Tooltip("Hide the spaceship entirely in AprilTag mode.\n\n" +
+             "The ship was a stand-in for a robot that did not exist yet. With " +
+             "a real robot on the floor, a spaceship hovering above it is two " +
+             "things claiming to be the player - the marker and heading arrow " +
+             "say the same thing without the confusion.")]
+    public bool hideShipInAprilTagMode = true;
+
     void Start()
     {
+        if (GameMode.IsAprilTag && hideShipInAprilTagMode)
+        {
+            if (ship == null) ship = CollectibleCup.Ship;
+            if (ship != null)
+            {
+                foreach (var r in ship.GetComponentsInChildren<Renderer>(true))
+                    r.enabled = false;
+
+                // Renderers only, not the GameObject: the arena run still reads
+                // the ship's position for finish and clamp logic, and
+                // deactivating it would break those quietly.
+                Debug.Log("[Tag] AprilTag mode - ship hidden, robot is the player");
+            }
+
+            Status = "AprilTag mode - ship hidden";
+            enabled = false;
+            return;
+        }
+
         if (!GameMode.IsAprilTag)
         {
             // Virtual Bot: GhostBot keeps full control of its own transform.

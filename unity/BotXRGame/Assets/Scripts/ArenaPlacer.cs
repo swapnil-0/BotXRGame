@@ -348,7 +348,7 @@ public class ArenaPlacer : MonoBehaviour
              "Was 1.2 and read as too strong - but only after influenceRadius " +
              "was corrected from 0.10 to 0.15 and the funnel was scaled to " +
              "match, so 1.2 had never actually been felt at its true size.")]
-    public float tornadoSuck = 0.95f;
+    public float tornadoSuck = 2.2f;
 
     [Tooltip("Overrides the prefab's swirl. Kept as-is: swirl is what makes " +
              "the vortex read as a vortex rather than a magnet, and the " +

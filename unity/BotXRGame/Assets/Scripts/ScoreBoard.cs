@@ -44,6 +44,7 @@ public class ScoreBoard : MonoBehaviour
     private GhostBot ship;
     private TrackedImageTagSource tagSource;
     private ShipTagFollower follower;
+    private TagCupTracker cupTracker;
     [Tooltip("Fallback only. The live value is read from an actual cup, so " +
              "this cannot drift out of sync with the real collect radius the " +
              "way a hardcoded 0.28 did.")]
@@ -185,6 +186,9 @@ public class ScoreBoard : MonoBehaviour
             // through passthrough, which has already been wrong twice in this
             // project. This turns it into three numbers: up should be the
             // hover height and the other two should be ~0.
+            if (cupTracker == null) cupTracker = FindAnyObjectByType<TagCupTracker>();
+            if (cupTracker != null) sb.Append(cupTracker.BuildReport());
+
             if (follower == null) follower = FindAnyObjectByType<ShipTagFollower>();
             if (follower != null && follower.tagTransform != null)
             {

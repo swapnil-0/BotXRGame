@@ -19,6 +19,25 @@ public class ArmRosPublisher : MonoBehaviour
     [Header("ROS")]
     public string topicName = "/arm_command";
 
+    [Tooltip("Own port for arm traffic, separate from /cmd_vel on 10000.\n\n" +
+             "Needs a SECOND ros_tcp_endpoint on the robot listening here. The " +
+             "isolation is real - a flood or crash on one link cannot affect " +
+             "the other - but it is two processes to start and two connections " +
+             "that can be independently down, so the HUD reports this one's " +
+             "state separately.")]
+    public int armPort = 10001;
+
+    [Tooltip("Robot IP. Left empty, it copies whatever the main connection is " +
+             "using, so the connect screen configures both links.")]
+    public string armIP = "";
+
+    [Tooltip("Fall back to the main connection on port 10000 if the arm link " +
+             "cannot be established.\n\n" +
+             "ON by default: a demo where the arm silently does nothing is " +
+             "worse than one where it works over the wrong port. The HUD says " +
+             "which link is carrying it.")]
+    public bool fallBackToMainConnection = true;
+
     [Tooltip("Publish even in Virtual Bot mode. Useful for testing the link " +
              "against bot_sim before the robot is on the bench.")]
     public bool publishInVirtualBotMode = true;
@@ -99,20 +118,83 @@ public class ArmRosPublisher : MonoBehaviour
         return r.action.ReadValue<float>() > threshold;
     }
 
+    private ROSConnection mainRos;
+    private bool usingFallback;
+
+    /// <summary>Which link the arm is actually publishing on, for the HUD.</summary>
+    public string LinkDescription { get; private set; } = "not connected";
+
     private void TryRegister()
     {
-        // Registration is deferred and retried rather than done once in Start:
-        // the ROS connection does not exist until the player has entered an IP
-        // and pressed Connect, which happens after this component wakes up.
+        // Deferred and retried rather than done once in Start: the main
+        // connection does not exist until the player has entered an IP and
+        // pressed Connect, and the arm link copies its address from there.
         if (registered) return;
 
-        ros = ROSConnection.GetOrCreateInstance();
-        if (ros == null) return;
+        mainRos = ROSConnection.GetOrCreateInstance();
+        if (mainRos == null) return;
+
+        string ip = !string.IsNullOrEmpty(armIP) ? armIP : mainRos.RosIPAddress;
+        if (string.IsNullOrEmpty(ip)) return;      // no address yet; retry next frame
+
+        if (ros == null) ros = CreateArmConnection(ip);
+
+        if (ros == null)
+        {
+            if (!fallBackToMainConnection) return;
+
+            ros = mainRos;
+            usingFallback = true;
+        }
 
         ros.RegisterPublisher<StringMsg>(topicName);
         registered = true;
-        Status = "publisher registered on " + topicName;
-        Debug.LogFormat("[Arm] registered publisher {0}", topicName);
+
+        LinkDescription = usingFallback
+            ? string.Format("{0}:{1} (FALLBACK - main link)", ip, mainRos.RosPort)
+            : string.Format("{0}:{1}", ip, armPort);
+
+        Status = "publisher on " + topicName + " via " + LinkDescription;
+        Debug.LogFormat("[Arm] {0} -> {1}", topicName, LinkDescription);
+    }
+
+    /// <summary>
+    /// Build a second ROSConnection for the arm.
+    ///
+    /// A second instance is safe: ROSConnection keeps its state per-object,
+    /// with only its connection-error flag static - so an error on either link
+    /// shows in the connector's own HUD for both, but publishing stays
+    /// independent. GetOrCreateInstance is deliberately NOT used, since that
+    /// returns the shared singleton already bound to port 10000.
+    ///
+    /// Built on an inactive object so ConnectOnStart cannot fire against the
+    /// default port before the real one is set.
+    /// </summary>
+    private ROSConnection CreateArmConnection(string ip)
+    {
+        try
+        {
+            var go = new GameObject("ArmRosConnection");
+            go.SetActive(false);
+
+            var conn = go.AddComponent<ROSConnection>();
+            conn.ConnectOnStart = false;
+            conn.RosIPAddress = ip;
+            conn.RosPort = armPort;
+            conn.listenForTFMessages = false;   // arm link carries commands only
+
+            go.SetActive(true);
+            conn.Connect(ip, armPort);
+
+            Debug.LogFormat("[Arm] opened arm link to {0}:{1}", ip, armPort);
+            return conn;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarningFormat(
+                "[Arm] could not open arm link on port {0}: {1}", armPort, e.Message);
+            return null;
+        }
     }
 
     void Update()

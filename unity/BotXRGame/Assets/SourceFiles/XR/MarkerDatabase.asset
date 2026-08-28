@@ -20,41 +20,41 @@ MonoBehaviour:
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 1
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 2
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 3
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 4
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 5
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 6
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 7
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 8
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 9
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   - _dictionary: 19
     _allMarkers: 0
     _markerId: 10
-    _physicalEdge: 0.04
+    _physicalEdge: 0.1
   _imageLibrary: {fileID: 11400000, guid: 8d639fc7f495d2540ba48d9ceb4bce25, type: 2}

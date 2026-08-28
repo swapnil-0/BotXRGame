@@ -64,7 +64,13 @@ public class InputDebugHUD : MonoBehaviour
             stick.x, stick.y);
 
         if (armPublisher != null)
+        {
+            // Link description as well as status: with the arm on its own port
+            // there are now two ways to be "connected", and a demo where the
+            // arm quietly ran over the fallback link would otherwise look
+            // identical to one where it did not.
             line += "   arm: " + armPublisher.Status;
+        }
 
         text.text = line;
     }

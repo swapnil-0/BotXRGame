@@ -23,12 +23,26 @@ public class ArmRosPublisher : MonoBehaviour
              "against bot_sim before the robot is on the bench.")]
     public bool publishInVirtualBotMode = true;
 
-    [Header("Input")]
-    [Tooltip("Controller button that triggers a swing.")]
+    [Header("Input - both on the right controller")]
+    [Tooltip("A button. Publishes the swing action string.")]
     public InputActionReference swingAction;
+
+    [Tooltip("B button. Publishes the kick action string.")]
+    public InputActionReference kickAction;
 
     [Range(0.1f, 0.9f)]
     public float pressThreshold = 0.5f;
+
+    [Header("ROS action names")]
+    [Tooltip("Payload action for the A button. bot_sim accepts SWING and STOW.")]
+    public string swingActionName = "SWING";
+
+    [Tooltip("Payload action for the B button.\n\n" +
+             "bot_sim currently REJECTS this - it accepts only SWING and STOW " +
+             "and logs 'unknown arm action' for anything else. The robot side " +
+             "has to add it. Left as a field so it can be renamed to match " +
+             "whatever the ROS dev implements without another Unity build.")]
+    public string kickActionName = "KICK";
 
     [Tooltip("Minimum seconds between swings. The robot arm takes over a second " +
              "to complete its arc, so a button held down would otherwise queue " +
@@ -48,16 +62,31 @@ public class ArmRosPublisher : MonoBehaviour
     public string Status { get; private set; } = "idle";
 
     private ROSConnection ros;
-    private bool wasPressed;
+    private bool swingWasPressed;
+    private bool kickWasPressed;
     private float lastSendTime = -999f;
     private bool registered;
 
     void Start()
     {
-        if (swingAction != null && swingAction.action != null)
-            swingAction.action.Enable();
-
+        Enable(swingAction);
+        Enable(kickAction);
         TryRegister();
+    }
+
+    private static void Enable(InputActionReference r)
+    {
+        if (r != null && r.action != null) r.action.Enable();
+    }
+
+    private static bool Pressed(InputActionReference r, float threshold)
+    {
+        if (r == null || r.action == null) return false;
+
+        // A/B are digital buttons, but the same code has to cope with a
+        // trigger bound here, so read as float and threshold. ReadValue<float>
+        // on a button control returns 0 or 1, which thresholds correctly.
+        return r.action.ReadValue<float>() > threshold;
     }
 
     private void TryRegister()
@@ -80,17 +109,18 @@ public class ArmRosPublisher : MonoBehaviour
     {
         if (!registered) TryRegister();
 
-        if (swingAction == null || swingAction.action == null) return;
-
-        bool pressed = swingAction.action.ReadValue<float>() > pressThreshold;
-
         // Rising edge only. Reading the level would fire every frame the button
         // is held, flooding the topic.
-        if (pressed && !wasPressed) OnSwingPressed();
-        wasPressed = pressed;
+        bool swing = Pressed(swingAction, pressThreshold);
+        if (swing && !swingWasPressed) Send(swingActionName);
+        swingWasPressed = swing;
+
+        bool kick = Pressed(kickAction, pressThreshold);
+        if (kick && !kickWasPressed) Send(kickActionName);
+        kickWasPressed = kick;
     }
 
-    private void OnSwingPressed()
+    private void Send(string actionName)
     {
         if (Time.time - lastSendTime < cooldownSeconds)
         {
@@ -114,30 +144,33 @@ public class ArmRosPublisher : MonoBehaviour
         if (!registered || ros == null)
         {
             Status = "NOT CONNECTED - nothing sent";
-            Debug.LogWarning("[Arm] swing pressed but no ROS connection");
+            Debug.LogWarningFormat("[Arm] {0} pressed but no ROS connection", actionName);
             return;
         }
 
-        // Yaw the arm should aim at. Zero for now: the swing is straight ahead
-        // of the robot, and aiming needs the cup-relative bearing which only
-        // exists once cup detection is running.
-        string payload = localArm != null
-            ? localArm.BuildRosCommand(0f)
-            : "{\"action\":\"SWING\",\"yaw\":0.000}";
+        // Built here rather than via ArmController.BuildRosCommand so the action
+        // name is not hardcoded to SWING. Same shape, same parser on the robot.
+        //
+        // Yaw stays 0: the stroke is straight ahead of the robot, and aiming
+        // needs a cup-relative bearing that does not exist until cup detection
+        // is running.
+        string payload = string.Format(
+            System.Globalization.CultureInfo.InvariantCulture,
+            "{{\"action\":\"{0}\",\"yaw\":{1:F3}}}", actionName, 0f);
 
         ros.Publish(topicName, new StringMsg(payload));
 
         SwingsSent++;
         LastCommand = payload;
         lastSendTime = Time.time;
-        Status = string.Format("sent #{0}", SwingsSent);
+        Status = string.Format("sent #{0} {1}", SwingsSent, actionName);
 
         Debug.LogFormat("[Arm] -> {0}  {1}", topicName, payload);
     }
 
     /// <summary>Wire to a UI button for testing without the controller.</summary>
-    public void SendSwingNow()
-    {
-        OnSwingPressed();
-    }
+    public void SendSwingNow() { Send(swingActionName); }
+
+    /// <summary>Wire to a UI button for testing without the controller.</summary>
+    public void SendKickNow() { Send(kickActionName); }
 }

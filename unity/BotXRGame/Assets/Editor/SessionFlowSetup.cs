@@ -211,6 +211,97 @@ public static class SessionFlowSetup
         EditorUtility.DisplayDialog("BotXRGame - Session Flow", msg, "OK");
     }
 
+    // ================================== bind everything to one controller
+
+    /// <summary>
+    /// Point Move, Place, Swing and Kick at the right controller.
+    ///
+    /// A SEPARATE command from Wire Session Flow, and it OVERWRITES existing
+    /// references - which is exactly why it is not folded into the other one.
+    /// Wire Session Flow is safe to re-run because it never overwrites; this
+    /// changes controls that already work, so it asks first.
+    /// </summary>
+    [MenuItem("Tools/BotXRGame/Bind All Controls To Right Controller", false, 41)]
+    public static void BindRightController()
+    {
+        var move  = FindActionReference("Bot", "Move");
+        var place = FindActionReference("Bot", "Place");
+        var swing = FindActionReference("Bot", "Swing");
+        var kick  = FindActionReference("Bot", "Kick");
+
+        if (move == null || place == null || swing == null || kick == null)
+        {
+            EditorUtility.DisplayDialog("BotXRGame",
+                "Could not find the Bot action map.\n\n" +
+                "Assets/SourceFiles/InputSystem/BotXRGameControls.inputactions " +
+                "must be imported first. If you just pulled it, let Unity finish " +
+                "importing and try again.", "OK");
+            return;
+        }
+
+        if (!EditorUtility.DisplayDialog("BotXRGame",
+                "This OVERWRITES existing input bindings:\n\n" +
+                "  Move  -> right thumbstick\n" +
+                "  Place -> right trigger\n" +
+                "  Swing -> A (primaryButton)\n" +
+                "  Kick  -> B (secondaryButton)\n\n" +
+                "Your current move/place bindings will be replaced.",
+                "Bind", "Cancel"))
+            return;
+
+        var done = new List<string>();
+
+        var bot = Object.FindAnyObjectByType<GhostBot>();
+        if (bot != null) { Overwrite(bot, "moveAction", move); done.Add("GhostBot.moveAction"); }
+
+        var robot = Object.FindAnyObjectByType<RobotController>();
+        if (robot != null)
+        {
+            Overwrite(robot, "moveAction", move);
+            done.Add("RobotController.moveAction");
+        }
+
+        var placer = Object.FindAnyObjectByType<ArenaPlacer>();
+        if (placer != null) { Overwrite(placer, "placeAction", place); done.Add("ArenaPlacer.placeAction"); }
+
+        var armPub = Object.FindAnyObjectByType<ArmRosPublisher>();
+        if (armPub != null)
+        {
+            Overwrite(armPub, "swingAction", swing);
+            Overwrite(armPub, "kickAction", kick);
+            done.Add("ArmRosPublisher.swingAction (A) + kickAction (B)");
+        }
+        else
+        {
+            done.Add("NO ArmRosPublisher - run Wire Session Flow first");
+        }
+
+        var arm = Object.FindAnyObjectByType<ArmController>();
+        if (arm != null) { Overwrite(arm, "swingAction", swing); done.Add("ArmController.swingAction"); }
+
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+
+        string msg = "Bound to right controller:\n  " + string.Join("\n  ", done) +
+                     "\n\nNote: bot_sim accepts SWING and STOW only. It will log " +
+                     "'unknown arm action' for KICK until the robot side adds it.";
+        Debug.Log("[BotXRGame] " + msg);
+        EditorUtility.DisplayDialog("BotXRGame - Controls", msg, "OK");
+    }
+
+    /// <summary>Unconditional assignment, unlike Wire(). Used only by the bind command.</summary>
+    private static void Overwrite(Object target, string field, Object value)
+    {
+        var so = new SerializedObject(target);
+        var p = so.FindProperty(field);
+        if (p == null)
+        {
+            Debug.LogWarning("[BotXRGame] no field '" + field + "' on " + target.GetType().Name);
+            return;
+        }
+        p.objectReferenceValue = value;
+        so.ApplyModifiedProperties();
+    }
+
     // ============================================================== helpers
 
     /// <summary>

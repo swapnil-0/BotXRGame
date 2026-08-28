@@ -1,6 +1,6 @@
 # BotXRGame scene report
 
-Generated: 2026-08-28 09:38:07
+Generated: 2026-08-28 09:49:53
 Scene: GetStarted_Scene  (Assets/Scenes/GetStarted_Scene.unity)
 Unity: 6000.4.2f1
 
@@ -68,7 +68,7 @@ ScoreCanvas   [Canvas, CanvasScaler, GraphicRaycaster, ScoreBoard]
   Headline   [CanvasRenderer, TextMeshProUGUI]
   Body   [CanvasRenderer, TextMeshProUGUI]
   Debug   [CanvasRenderer, TextMeshProUGUI]
-TagStandIn   [MeshFilter, MeshRenderer, TrackedImageTagSource]
+TagStandIn   [MeshFilter, MeshRenderer, TrackedImageTagSource, ControllerHeldStandIn]
 ```
 
 ## UI plumbing
@@ -87,6 +87,20 @@ Canvas 'ScoreCanvas'
    worldCamera: NULL
    raycaster  : GraphicRaycaster
    scale      : (0.0010, 0.0010, 0.0010)
+```
+
+## AprilTag / marker tracking
+```
+1 package com.google.xr.extensions : installed
+2 marker tracking feature (Android)  : enabled
+3 marker database                    : Assets/SourceFiles/XR/MarkerDatabase.asset
+     entries: 1
+       dict April Tag_36H11  id 0  edge 0.100 m  all False
+4 reference library on database      : MarkerReferenceLibrary
+5 ARTrackedImageManager              : on XR Origin (VR) (enabled)
+6 manager referenceLibrary           : MarkerReferenceLibrary  (1 images)
+7 TrackedImageTagSource              : TagStandIn  status: no manager
+8 duplicate XR settings folders      : Assets/XR/Settings 1, Assets/XR/Settings 2, Assets/XR/Settings 3, Assets/XR 1, Assets/XR 2, Assets/XR 3  <-- an earlier XR settings write failed
 ```
 
 ## Components
@@ -159,6 +173,30 @@ on: ShipRoot
    smoothTime                   = 0.1200
    followYaw                    = True
    trackingTimeout              = 0.5000
+
+```
+
+### TrackedImageTagSource  (1 in scene)
+```
+on: TagStandIn
+   trackedImageManager          = XR Origin (VR) (ARTrackedImageManager)
+   expectedName                 = ""
+   tagOutput                    = TagStandIn (Transform)
+   standInToDisable             = NULL   <-- unassigned
+
+```
+
+### ControllerHeldStandIn  (1 in scene)
+```
+on: TagStandIn
+   rayOrigin                    = Ray Interactor (Transform)
+   distance                     = 0.8000
+   projectToFloor               = True
+   floorY                       = 0.0000
+   heightAboveFloor             = 0.0200
+   holdAction                   = NULL   <-- unassigned
+   pressThreshold               = 0.5000
+   onlyInAprilTagMode           = True
 
 ```
 

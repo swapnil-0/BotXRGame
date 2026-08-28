@@ -265,9 +265,28 @@ public static class SceneReport
 
         // 7. our adapter
         var src = Object.FindAnyObjectByType<TrackedImageTagSource>(FindObjectsInactive.Include);
-        sb.AppendLine("7 TrackedImageTagSource              : " +
-            (src == null ? "MISSING"
-                         : HierarchyPath(src.transform) + "  status: " + src.Status));
+        // Status is a RUNTIME value. In edit mode it is whatever the field was
+        // initialised to, which says nothing about the wiring - so report the
+        // reference instead, which is what can actually be checked here.
+        if (src == null)
+        {
+            sb.AppendLine("7 TrackedImageTagSource              : MISSING");
+        }
+        else
+        {
+            var srcSo = new SerializedObject(src);
+            var mgr = srcSo.FindProperty("trackedImageManager");
+            var outT = srcSo.FindProperty("tagOutput");
+            var dis = srcSo.FindProperty("standInToDisable");
+
+            sb.AppendLine("7 TrackedImageTagSource              : " + HierarchyPath(src.transform));
+            sb.AppendLine("     manager   : " + RefName(mgr));
+            sb.AppendLine("     tagOutput : " + RefName(outT));
+            sb.AppendLine("     standInToDisable : " + RefName(dis) +
+                (dis != null && dis.objectReferenceValue == null
+                    ? "   <-- stand-in will keep writing the same transform" : ""));
+            sb.AppendLine("     (status is runtime-only; blank in edit mode)");
+        }
 
         // 8. duplicate XR settings folders. Unity numbers a folder when it
         //    cannot write the existing one, so duplicates usually mean an
@@ -282,6 +301,13 @@ public static class SceneReport
         sb.AppendLine("8 duplicate XR settings folders      : " +
             (dupes.Count == 0 ? "none" : string.Join(", ", dupes) +
              "  <-- an earlier XR settings write failed"));
+    }
+
+    private static string RefName(SerializedProperty p)
+    {
+        if (p == null) return "(no such field)";
+        return p.objectReferenceValue == null
+            ? "NULL" : p.objectReferenceValue.name;
     }
 
     private static string Rel(SerializedProperty p, string name)

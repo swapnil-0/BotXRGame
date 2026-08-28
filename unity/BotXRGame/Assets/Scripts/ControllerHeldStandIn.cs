@@ -40,6 +40,7 @@ public class ControllerHeldStandIn : MonoBehaviour
     public bool onlyInAprilTagMode = true;
 
     private bool everPlaced;
+    private TrackedImageTagSource tagSource;
 
     void Start()
     {
@@ -60,6 +61,18 @@ public class ControllerHeldStandIn : MonoBehaviour
     {
         if (onlyInAprilTagMode && !GameMode.IsAprilTag) return;
         if (rayOrigin == null) return;
+
+        // Stand down whenever a real marker is being tracked.
+        //
+        // TrackedImageTagSource is supposed to disable this component via
+        // standInToDisable, but that reference can be unset - it was, in the
+        // scene report - and then BOTH write to the same Transform every frame
+        // in undefined order. The tag would appear to jitter between the
+        // printed marker and the controller, which looks like bad tracking
+        // rather than two components fighting. Checking directly cannot be
+        // left unwired.
+        if (tagSource == null) tagSource = FindAnyObjectByType<TrackedImageTagSource>();
+        if (tagSource != null && tagSource.Tracking) return;
 
         if (holdAction != null && holdAction.action != null && everPlaced)
         {

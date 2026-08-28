@@ -50,7 +50,11 @@ public class TrackedImageTagSource : MonoBehaviour
     // Plain comment: [Header] is AttributeTargets.Field, so on a property it is
     // CS0592. Second time I have made this exact mistake in this project.
     public bool Tracking { get; private set; }
-    public string Status { get; private set; } = "no manager";
+    // "not started" rather than "no manager": Status is only written once Start
+    // runs, so in edit mode the scene report showed "no manager" on a scene
+    // where the manager was correctly wired - a false alarm on the exact line
+    // meant to detect that failure.
+    public string Status { get; private set; } = "not started (edit mode)";
     public Vector3 LastPosition { get; private set; }
     public float LastSeenAge { get; private set; }
 

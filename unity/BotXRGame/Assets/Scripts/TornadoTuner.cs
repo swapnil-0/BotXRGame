@@ -124,6 +124,22 @@ public class TornadoTuner : MonoBehaviour
             Step = 0.01f, Min = 0.04f, Max = 0.45f,
             Default = placer.twinTornadoRadiusFraction,
         });
+        // Which tag is the robot, changeable in the headset. Guessing this from
+        // the Inspector means a rebuild per guess, and "the marker is not on
+        // the tag I expected" is only answerable by trying ids until the BOT
+        // label lands on the right one.
+        var tracker = FindAnyObjectByType<TagCupTracker>();
+        if (tracker != null)
+        {
+            parameters.Add(new Param
+            {
+                Name = "BOT tag id", Key = "tune_botid",
+                Get = () => tracker.botMarkerId,
+                Set = v => tracker.SetBotMarkerId(Mathf.RoundToInt(v)),
+                Step = 1f, Min = 0f, Max = 10f, Default = tracker.botMarkerId,
+            });
+        }
+
         parameters.Add(new Param
         {
             Name = "capture radius frac", Key = "tune_capfrac",
@@ -147,7 +163,12 @@ public class TornadoTuner : MonoBehaviour
     void Update()
     {
         if (parameters.Count == 0) { BuildParameters(); LoadSaved(); }
-        if (placer == null || !placer.IsPlaced) return;
+
+        // Openable before the arena is placed in AprilTag mode: the bot tag id
+        // has to be settable while you are still working out which tag is which,
+        // which is before anything is placed.
+        if (placer == null) return;
+        if (!placer.IsPlaced && !GameMode.IsAprilTag) return;
 
         bool toggle = Read(toggleAction) > pressThreshold;
         if (toggle && !toggleWasPressed) SetOpen(!open);

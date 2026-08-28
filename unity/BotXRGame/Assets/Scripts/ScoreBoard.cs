@@ -207,6 +207,18 @@ public class ScoreBoard : MonoBehaviour
                 sb.Append("no BotCommandMixer - run Wire Session Flow\n");
             }
 
+            // Every id currently seen, so "which tag is the bot" is answerable
+            // without taking the headset off. A tracked id-0 tag that is not
+            // the one you expected looks identical to a broken marker.
+            if (cupTracker != null && cupTracker.SeenTags.Count > 0)
+            {
+                sb.Append("ids seen:");
+                foreach (var kv in cupTracker.SeenTags)
+                    sb.AppendFormat(" {0}{1}",
+                        kv.Key, kv.Key == cupTracker.botMarkerId ? "(BOT)" : "");
+                sb.Append("\n");
+            }
+
             // Per-cup detail only; the counts and bot state are in the body
             // line above, and printing them twice is what made this crowded.
             if (cupTracker != null) sb.Append(cupTracker.BuildReport());

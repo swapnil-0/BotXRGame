@@ -68,6 +68,35 @@ public class TagCupTracker : MonoBehaviour
     public Transform BotTag { get; private set; }
     public bool BotTracked { get; private set; }
 
+    /// <summary>
+    /// Every id seen this frame and where it is, bot included.
+    ///
+    /// Needed because "which physical tag is id 0" is not answerable from a
+    /// count. The bot marker sat on an id-0 tag that was tracked but off to one
+    /// side, and from inside the headset that is indistinguishable from the
+    /// marker being broken.
+    /// </summary>
+    public readonly Dictionary<int, Vector3> SeenTags = new Dictionary<int, Vector3>();
+
+    /// <summary>
+    /// Change which id is the robot at runtime.
+    ///
+    /// Clears the cup table, because the previous bot id must now be treated
+    /// as a cup and the new one must stop being one - keeping stale entries
+    /// would leave a phantom cup that never topples and a real cup that never
+    /// appears.
+    /// </summary>
+    public void SetBotMarkerId(int id)
+    {
+        if (id == botMarkerId) return;
+
+        botMarkerId = id;
+        cups.Clear();
+        BotTag = null;
+        BotTracked = false;
+        Debug.LogFormat("[Cups] bot marker id is now {0}", id);
+    }
+
     public IEnumerable<CupState> Cups => cups.Values;
     public int CupCount => cups.Count;
 
@@ -95,6 +124,7 @@ public class TagCupTracker : MonoBehaviour
         if (trackedImageManager == null) return;
 
         BotTracked = false;
+        SeenTags.Clear();
 
         foreach (var img in trackedImageManager.trackables)
         {
@@ -102,6 +132,8 @@ public class TagCupTracker : MonoBehaviour
             if (id < 0) continue;
 
             bool tracking = img.trackingState == TrackingState.Tracking;
+
+            if (tracking) SeenTags[id] = img.transform.position;
 
             if (id == botMarkerId)
             {

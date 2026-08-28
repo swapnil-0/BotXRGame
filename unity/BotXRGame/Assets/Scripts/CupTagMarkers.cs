@@ -53,9 +53,31 @@ public class CupTagMarkers : MonoBehaviour
         if (tracker == null) tracker = FindAnyObjectByType<TagCupTracker>();
     }
 
+    [Tooltip("Also label the bot tag, in a distinct colour.\n\n" +
+             "Without this there is no way to see WHICH physical tag the app " +
+             "considers the robot - the bot marker sits on it, but if that tag " +
+             "is not the one you expected, the marker just looks misplaced.")]
+    public bool labelBotTag = true;
+
+    public Color botColour = new Color(0.3f, 0.7f, 1f);
+
     void LateUpdate()
     {
         if (tracker == null) return;
+
+        // Bot tag first, so it is labelled even though it is not a cup.
+        if (labelBotTag && tracker.SeenTags.TryGetValue(tracker.botMarkerId, out var botPos))
+        {
+            var bm = GetOrCreate(tracker.botMarkerId);
+            bm.Root.transform.position = botPos + Vector3.up * height;
+            if (bm.Mat != null) bm.Mat.color = botColour;
+            if (bm.Label != null)
+            {
+                bm.Label.color = botColour;
+                bm.Label.text = string.Format("#{0}\nBOT", tracker.botMarkerId);
+                FaceCamera(bm);
+            }
+        }
 
         foreach (var cup in tracker.Cups)
         {
@@ -78,16 +100,18 @@ public class CupTagMarkers : MonoBehaviour
                     !cup.Visible ? "lost" : cup.Toppled ? "DOWN" : "up");
             }
 
-            // Face the player so the label stays readable from any side.
-            if (Camera.main != null && m.Label != null)
-            {
-                Vector3 look = m.Root.transform.position - Camera.main.transform.position;
-                look.y = 0f;
-                if (look.sqrMagnitude > 1e-6f)
-                    m.Label.transform.rotation =
-                        Quaternion.LookRotation(look.normalized, Vector3.up);
-            }
+            FaceCamera(m);
         }
+    }
+
+    private void FaceCamera(Marker m)
+    {
+        if (Camera.main == null || m.Label == null) return;
+
+        Vector3 look = m.Root.transform.position - Camera.main.transform.position;
+        look.y = 0f;
+        if (look.sqrMagnitude > 1e-6f)
+            m.Label.transform.rotation = Quaternion.LookRotation(look.normalized, Vector3.up);
     }
 
     private Marker GetOrCreate(int id)

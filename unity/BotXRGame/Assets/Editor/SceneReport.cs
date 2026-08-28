@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.XR.ARFoundation;
 using Object = UnityEngine.Object;
 
 /// <summary>
@@ -89,6 +90,13 @@ public static class SceneReport
         sb.AppendLine("```");
         sb.AppendLine();
 
+        // ------------------------------------------- AprilTag readiness
+        sb.AppendLine("## AprilTag / marker tracking");
+        sb.AppendLine("```");
+        AppendMarkerReport(sb);
+        sb.AppendLine("```");
+        sb.AppendLine();
+
         // ------------------------------------------------------- components
         var types = new List<Type>
         {
@@ -140,6 +148,151 @@ public static class SceneReport
         EditorUtility.DisplayDialog("BotXRGame",
             "Scene report written to:\n\ndocs/reports/scene-report.md\n\n" +
             "Commit it, or just tell Claude it exists.", "OK");
+    }
+
+    /// <summary>
+    /// Every link in the AprilTag chain, in the order it has to work.
+    ///
+    /// The chain is long - package, OpenXR feature, database, generated
+    /// library, manager, manager enabled, source component - and a break
+    /// anywhere shows up identically in the headset as "the tag does nothing".
+    /// Listing them in order turns that into one glance.
+    /// </summary>
+    private static void AppendMarkerReport(StringBuilder sb)
+    {
+        // 1. Google's package
+        bool pkg = FindType("Google.XR.Extensions.XRMarkerTrackingFeature") != null;
+        sb.AppendLine("1 package com.google.xr.extensions : " +
+                      (pkg ? "installed" : "MISSING"));
+
+        // 2. OpenXR feature enabled for Android
+        string featureState = "unknown";
+        var settings = UnityEngine.XR.OpenXR.OpenXRSettings
+            .GetSettingsForBuildTargetGroup(BuildTargetGroup.Android);
+        if (settings == null)
+        {
+            featureState = "no Android OpenXR settings";
+        }
+        else
+        {
+            featureState = "NOT FOUND";
+            foreach (var f in settings.GetFeatures())
+            {
+                if (f == null) continue;
+                string n = f.GetType().FullName;
+                if (n == "Google.XR.Extensions.XRMarkerTrackingFeature")
+                    featureState = f.enabled ? "enabled" : "DISABLED";
+            }
+        }
+        sb.AppendLine("2 marker tracking feature (Android)  : " + featureState);
+
+        // 3. the database asset and its entries
+        string dbPath = null;
+        foreach (var guid in AssetDatabase.FindAssets("MarkerDatabase"))
+        {
+            string p = AssetDatabase.GUIDToAssetPath(guid);
+            if (!p.EndsWith(".asset")) continue;
+            var o = AssetDatabase.LoadAssetAtPath<ScriptableObject>(p);
+            if (o != null && o.GetType().FullName == "Google.XR.Extensions.XRMarkerDatabase")
+            {
+                dbPath = p;
+                break;
+            }
+        }
+
+        if (dbPath == null)
+        {
+            sb.AppendLine("3 marker database                    : MISSING");
+        }
+        else
+        {
+            var db = AssetDatabase.LoadAssetAtPath<ScriptableObject>(dbPath);
+            var so = new SerializedObject(db);
+            var entries = so.FindProperty("_entries");
+            sb.AppendLine("3 marker database                    : " + dbPath);
+            sb.AppendLine("     entries: " + (entries != null ? entries.arraySize : 0));
+
+            if (entries != null)
+            {
+                for (int i = 0; i < entries.arraySize; i++)
+                {
+                    var e = entries.GetArrayElementAtIndex(i);
+                    sb.AppendFormat("       dict {0}  id {1}  edge {2:F3} m  all {3}\n",
+                        Rel(e, "_dictionary"), Rel(e, "_markerId"),
+                        RelF(e, "_physicalEdge"), Rel(e, "_allMarkers"));
+                }
+            }
+
+            var lib = so.FindProperty("_imageLibrary");
+            sb.AppendLine("4 reference library on database      : " +
+                (lib != null && lib.objectReferenceValue != null
+                    ? lib.objectReferenceValue.name
+                    : "NOT CREATED  <-- press 'Create Reference Library'"));
+        }
+
+        // 5/6. the manager
+        var tim = Object.FindAnyObjectByType<ARTrackedImageManager>(FindObjectsInactive.Include);
+        if (tim == null)
+        {
+            sb.AppendLine("5 ARTrackedImageManager              : MISSING");
+        }
+        else
+        {
+            sb.AppendLine("5 ARTrackedImageManager              : on " +
+                          HierarchyPath(tim.transform) +
+                          (tim.enabled ? " (enabled)" : "  <-- DISABLED"));
+            sb.AppendLine("6 manager referenceLibrary           : " +
+                (tim.referenceLibrary != null
+                    ? tim.referenceLibrary.name
+                    : "NOT ASSIGNED  <-- assign the generated library"));
+        }
+
+        // 7. our adapter
+        var src = Object.FindAnyObjectByType<TrackedImageTagSource>(FindObjectsInactive.Include);
+        sb.AppendLine("7 TrackedImageTagSource              : " +
+            (src == null ? "MISSING"
+                         : HierarchyPath(src.transform) + "  status: " + src.Status));
+
+        // 8. duplicate XR settings folders. Unity numbers a folder when it
+        //    cannot write the existing one, so duplicates usually mean an
+        //    earlier settings write failed - which is how a stale loader
+        //    reference survives and breaks an Android build.
+        var dupes = new List<string>();
+        foreach (var d in AssetDatabase.GetSubFolders("Assets/XR"))
+            if (d.Contains(" 1") || d.Contains(" 2") || d.Contains(" 3")) dupes.Add(d);
+        foreach (var d in AssetDatabase.GetSubFolders("Assets"))
+            if (d.StartsWith("Assets/XR ")) dupes.Add(d);
+
+        sb.AppendLine("8 duplicate XR settings folders      : " +
+            (dupes.Count == 0 ? "none" : string.Join(", ", dupes) +
+             "  <-- an earlier XR settings write failed"));
+    }
+
+    private static string Rel(SerializedProperty p, string name)
+    {
+        var r = p.FindPropertyRelative(name);
+        if (r == null) return "?";
+        if (r.propertyType == SerializedPropertyType.Enum)
+            return r.enumValueIndex >= 0 && r.enumValueIndex < r.enumDisplayNames.Length
+                ? r.enumDisplayNames[r.enumValueIndex] : r.intValue.ToString();
+        if (r.propertyType == SerializedPropertyType.Boolean) return r.boolValue.ToString();
+        return r.intValue.ToString();
+    }
+
+    private static float RelF(SerializedProperty p, string name)
+    {
+        var r = p.FindPropertyRelative(name);
+        return r != null ? r.floatValue : 0f;
+    }
+
+    private static Type FindType(string fullName)
+    {
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            var t = asm.GetType(fullName, false);
+            if (t != null) return t;
+        }
+        return null;
     }
 
     private static void DumpHierarchy(Transform t, int depth, StringBuilder sb)

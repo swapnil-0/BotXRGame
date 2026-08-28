@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// First screen of the session: pick Virtual Bot or AprilTag, then hand over to
@@ -30,6 +31,21 @@ public class ModeSelectMenu : MonoBehaviour
     public TMPro.TextMeshProUGUI titleText;
     public TMPro.TextMeshProUGUI helpText;
 
+    [Header("Button fallback")]
+    [Tooltip("A button - selects Virtual Bot without needing a UI raycast.\n\n" +
+             "World-space UI buttons only work if an EventSystem, a UI input " +
+             "module and a ray interactor are all present and aimed correctly. " +
+             "If any of that is missing the menu is a dead end with no way past " +
+             "it, and the whole session is lost. A direct button press cannot " +
+             "fail that way.")]
+    public InputActionReference selectVirtualAction;
+
+    [Tooltip("B button - selects AprilTag.")]
+    public InputActionReference selectAprilTagAction;
+
+    [Range(0.1f, 0.9f)]
+    public float pressThreshold = 0.5f;
+
     [Header("Next step")]
     [Tooltip("Revealed once a mode is chosen. Its own panel stays hidden until then.")]
     public ROSIPConfig ipConfig;
@@ -47,12 +63,15 @@ public class ModeSelectMenu : MonoBehaviour
         if (modePanel != null) modePanel.SetActive(true);
         if (ipConfig != null) ipConfig.HideUntilModeChosen();
 
+        Enable(selectVirtualAction);
+        Enable(selectAprilTagAction);
+
         if (titleText != null) titleText.text = "Select mode";
         if (helpText != null)
         {
             helpText.text =
-                "Virtual Bot - fly the ship with the joystick, no robot needed\n" +
-                "AprilTag - ship follows the tag on the real robot";
+                "A  Virtual Bot - fly the ship, no robot needed\n" +
+                "B  AprilTag - ship follows the tag on the real robot";
         }
 
         if (virtualBotButton != null)
@@ -67,6 +86,34 @@ public class ModeSelectMenu : MonoBehaviour
                              "and continuing so the session is not dead on arrival.");
             Choose(ShipSource.VirtualBot);
         }
+    }
+
+    private static void Enable(InputActionReference r)
+    {
+        if (r != null && r.action != null) r.action.Enable();
+    }
+
+    private bool virtualWasPressed, tagWasPressed;
+
+    void Update()
+    {
+        // Only while the menu is up; afterwards these are the arm buttons.
+        if (GameMode.Chosen) return;
+        if (modePanel != null && !modePanel.activeSelf) return;
+
+        bool v = Read(selectVirtualAction);
+        if (v && !virtualWasPressed) Choose(ShipSource.VirtualBot);
+        virtualWasPressed = v;
+
+        bool t = Read(selectAprilTagAction);
+        if (t && !tagWasPressed) Choose(ShipSource.AprilTag);
+        tagWasPressed = t;
+    }
+
+    private bool Read(InputActionReference r)
+    {
+        if (r == null || r.action == null) return false;
+        return r.action.ReadValue<float>() > pressThreshold;
     }
 
     public void Choose(ShipSource source)

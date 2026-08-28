@@ -269,7 +269,7 @@ public static class SessionFlowSetup
         {
             Overwrite(armPub, "swingAction", swing);
             Overwrite(armPub, "kickAction", kick);
-            done.Add("ArmRosPublisher.swingAction (A) + kickAction (B)");
+            done.Add("ArmRosPublisher: A = SWING, B = STOW");
         }
         else
         {
@@ -278,6 +278,17 @@ public static class SessionFlowSetup
 
         var arm = Object.FindAnyObjectByType<ArmController>();
         if (arm != null) { Overwrite(arm, "swingAction", swing); done.Add("ArmController.swingAction"); }
+
+        // Same A/B on the mode menu. Those buttons are not otherwise live until
+        // a mode is chosen, and this makes the menu usable without any UI
+        // raycasting - the one screen where a dead end costs the whole session.
+        var menu = Object.FindAnyObjectByType<ModeSelectMenu>();
+        if (menu != null)
+        {
+            Overwrite(menu, "selectVirtualAction", swing);
+            Overwrite(menu, "selectAprilTagAction", kick);
+            done.Add("ModeSelectMenu: A = Virtual Bot, B = AprilTag");
+        }
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
 

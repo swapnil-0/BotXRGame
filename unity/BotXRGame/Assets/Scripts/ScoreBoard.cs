@@ -42,6 +42,7 @@ public class ScoreBoard : MonoBehaviour
     private ArenaRun run;
     private Tornado tornado;
     private GhostBot ship;
+    private TrackedImageTagSource tagSource;
     [Tooltip("Fallback only. The live value is read from an actual cup, so " +
              "this cannot drift out of sync with the real collect radius the " +
              "way a hardcoded 0.28 did.")]
@@ -168,6 +169,16 @@ public class ScoreBoard : MonoBehaviour
             c.x, c.z, ext, ship.gameObject.name, shipCount);
         sb.AppendFormat("hdg {0:F0}  cmd {1:F3}  applied {2:F3} rad/s\n",
             hdg, ship.CommandedAngularZ, ship.AppliedAngularRate);
+
+        // Tag line, only in AprilTag mode - it is noise otherwise. Prints the
+        // detected pose, which is what tells you whether the marker is actually
+        // being seen rather than the stand-in being followed.
+        if (GameMode.IsAprilTag)
+        {
+            if (tagSource == null) tagSource = FindAnyObjectByType<TrackedImageTagSource>();
+            sb.AppendFormat("tag {0}\n",
+                tagSource != null ? tagSource.Status : "no TrackedImageTagSource");
+        }
 
         if (CollectibleCup.Active.Count == 0)
         {

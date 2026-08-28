@@ -258,7 +258,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c0b14660db2624ca2a024dece54443c1, type: 3}
   m_Name: XRQrCodeTrackingFeature Android
   m_EditorClassIdentifier: Google.XR.Extensions::Google.XR.Extensions.XRQrCodeTrackingFeature
-  m_enabled: 1
+  m_enabled: 0
   nameUi: 'Android XR (Extensions): Image Tracking (QR Code)'
   version: 1.0.0
   featureIdInternal: com.google.xr.extensions.qrcode_tracking
@@ -568,7 +568,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 58acfecd3ee2d408297e5bfe290fd1b1, type: 3}
   m_Name: XRObjectTrackingFeature Android
   m_EditorClassIdentifier: Google.XR.Extensions::Google.XR.Extensions.XRObjectTrackingFeature
-  m_enabled: 1
+  m_enabled: 0
   nameUi: 'Android XR (Extensions): Object Tracking'
   version: 1.0.0
   featureIdInternal: com.google.xr.extensions.object_tracking
@@ -1992,7 +1992,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44637f24fb78d3d93992291f9ed3e436, type: 3}
   m_Name: XRPassthroughFeature Android
   m_EditorClassIdentifier: Google.XR.Extensions::Google.XR.Extensions.XRPassthroughFeature
-  m_enabled: 1
+  m_enabled: 0
   nameUi: 'Android XR (Extensions): Passthrough Composition Layer'
   version: 1.0.0
   featureIdInternal: com.google.xr.extensions.passthrough_composition_layer

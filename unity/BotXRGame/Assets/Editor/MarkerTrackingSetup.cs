@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -204,7 +203,15 @@ public static class MarkerTrackingSetup
             return false;
         }
 
-        Directory.CreateDirectory("Assets/SourceFiles/XR");
+        // AssetDatabase.CreateFolder, not Directory.CreateDirectory. The latter
+        // makes the folder on disk without registering it, and CreateAsset then
+        // fails on a path the AssetDatabase does not know about - producing no
+        // asset and no obvious reason why.
+        if (!EnsureFolder("Assets/SourceFiles/XR"))
+        {
+            note = "Could not create Assets/SourceFiles/XR";
+            return false;
+        }
 
         var db = ScriptableObject.CreateInstance(dbType);
         AssetDatabase.CreateAsset(db, path);
@@ -234,6 +241,26 @@ public static class MarkerTrackingSetup
 
         note = "Created " + path + " with AprilTag 36H11, id 0, 0.100 m";
         return true;
+    }
+
+    /// <summary>Create a folder path segment by segment, registering each with the AssetDatabase.</summary>
+    private static bool EnsureFolder(string assetPath)
+    {
+        if (AssetDatabase.IsValidFolder(assetPath)) return true;
+
+        var parts = assetPath.Split('/');
+        string running = parts[0];                 // "Assets"
+
+        for (int i = 1; i < parts.Length; i++)
+        {
+            string next = running + "/" + parts[i];
+            if (!AssetDatabase.IsValidFolder(next))
+                AssetDatabase.CreateFolder(running, parts[i]);
+            running = next;
+        }
+
+        AssetDatabase.Refresh();
+        return AssetDatabase.IsValidFolder(assetPath);
     }
 
     private static void SetIfPresent(SerializedProperty parent, string name, int value)

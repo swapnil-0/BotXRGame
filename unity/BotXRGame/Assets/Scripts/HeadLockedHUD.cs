@@ -24,6 +24,13 @@ public class HeadLockedHUD : MonoBehaviour
     [Tooltip("Metres in front of the head.")]
     public float distance = 1.2f;
 
+    [Tooltip("Scale applied to the panel at startup. The HUD covered most of " +
+             "the play area at 1.0 - it is a debug readout, not the game, and " +
+             "it should not be the biggest thing you are looking at.\n\n" +
+             "New field, so the code default applies rather than whatever the " +
+             "scene has serialized.")]
+    public float panelScale = 0.45f;
+
     [Tooltip("Metres below eye level, so the panel does not sit over whatever " +
              "you are actually trying to look at. The arena is on the floor, so " +
              "a HUD at eye height covers the room instead of the game.")]
@@ -58,6 +65,9 @@ public class HeadLockedHUD : MonoBehaviour
             enabled = false;
             return;
         }
+
+        if (panelScale > 0f && !Mathf.Approximately(panelScale, 1f))
+            panel.localScale = panel.localScale * panelScale;
 
         lockedForward = FlatForward(head.forward);
         SnapTo(lockedForward);

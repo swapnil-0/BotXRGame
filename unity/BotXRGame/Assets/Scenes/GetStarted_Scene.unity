@@ -5329,7 +5329,7 @@ MonoBehaviour:
   angularSpeed: 1.5
   moveAction: {fileID: -7185608374540891126, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   triggerAction: {fileID: 7904272356298805229, guid: c348712bda248c246b8c49b3db54643f, type: 3}
-  moveInSimulation: 1
+  moveInSimulation: 0
   linearX: 0
   angularZ: 0
   connectionStatus: Waiting for ROS...
@@ -6662,7 +6662,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HeadLockedHUD
   panel: {fileID: 1951686361}
-  head: {fileID: 0}
+  head: {fileID: 1329184599}
   distance: 1.2
   verticalOffset: 0.25
   deadAngle: 12

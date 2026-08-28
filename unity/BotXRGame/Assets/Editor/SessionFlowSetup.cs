@@ -238,9 +238,24 @@ public static class SessionFlowSetup
             });
 
             done.Add("ShipTagFollower.tagTransform -> TagStandIn (placeholder)");
-            problems.Add("TagStandIn is a PLACEHOLDER cube, not real tracking. Move " +
-                         "it in the Scene view to verify the ship follows, then " +
-                         "repoint tagTransform at the actual tracked transform.");
+            problems.Add("TagStandIn is a PLACEHOLDER cube, not real tracking.");
+        }
+
+        // Make the stand-in reachable from inside the headset. A cube you can
+        // only drag in the Scene view is useless in a build, which is why
+        // AprilTag mode looked frozen with the ship parked on it.
+        var standInGo = GameObject.Find("TagStandIn");
+        if (standInGo != null)
+        {
+            var held = GetOrAdd<ControllerHeldStandIn>(standInGo);
+            var heldWires = new Dictionary<string, Object>();
+            if (placer != null)
+            {
+                var ro = GetTransformField(placer, "rayOrigin");
+                if (ro != null) heldWires["rayOrigin"] = ro;
+            }
+            Wire(held, heldWires);
+            done.Add("TagStandIn follows the controller (point to place the 'tag')");
         }
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());

@@ -175,8 +175,20 @@ public static class SessionFlowSetup
 
             if (swing != null)
             {
-                armWires["swingAction"] = swing;
-                done.Add("ArmRosPublisher.swingAction -> left trigger (" + swing.name + ")");
+                // Report only if it will actually be assigned. Wire() skips
+                // fields that are already set, so announcing the intent rather
+                // than the outcome claimed a left-trigger binding on a scene
+                // where A was already bound and nothing changed - a report that
+                // describes what did not happen is worse than no report.
+                if (GetObjectFieldGeneric(armPub, "swingAction") == null)
+                {
+                    armWires["swingAction"] = swing;
+                    done.Add("ArmRosPublisher.swingAction -> left trigger (" + swing.name + ")");
+                }
+                else
+                {
+                    done.Add("ArmRosPublisher.swingAction already set - left alone");
+                }
             }
             else
             {

@@ -357,6 +357,88 @@ public static class MarkerTrackingSetup
         if (p != null) p.floatValue = value;
     }
 
+    /// <summary>
+    /// Force every entry to one physical size.
+    ///
+    /// Separate from the setup command, and it asks first, because it
+    /// OVERWRITES values - including any deliberately set by hand. Setup only
+    /// ever adds rows; mixing the two would make a safe-to-re-run command
+    /// quietly destructive, which is the same trap the scene builder fell into
+    /// when it reset arenaSize on every run.
+    /// </summary>
+    [MenuItem("Tools/BotXRGame/Set All Marker Sizes To 100 mm", false, 43)]
+    public static void NormaliseMarkerSizes()
+    {
+        const float edge = 0.100f;
+
+        string path = "Assets/SourceFiles/XR/MarkerDatabase.asset";
+        var db = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+        if (db == null)
+        {
+            EditorUtility.DisplayDialog("BotXRGame",
+                "No marker database at " + path + ".\nRun Set Up AprilTag Tracking first.",
+                "OK");
+            return;
+        }
+
+        var so = new SerializedObject(db);
+        var entries = so.FindProperty("_entries");
+        if (entries == null || entries.arraySize == 0)
+        {
+            EditorUtility.DisplayDialog("BotXRGame", "Database has no entries.", "OK");
+            return;
+        }
+
+        int changed = 0;
+        var before = new List<string>();
+
+        for (int i = 0; i < entries.arraySize; i++)
+        {
+            var e = entries.GetArrayElementAtIndex(i);
+            var idP = e.FindPropertyRelative("_markerId");
+            var edgeP = e.FindPropertyRelative("_physicalEdge");
+            if (edgeP == null) continue;
+
+            if (Mathf.Abs(edgeP.floatValue - edge) > 1e-4f)
+            {
+                before.Add(string.Format("id {0}: {1:F3} -> {2:F3}",
+                    idP != null ? idP.intValue : -1, edgeP.floatValue, edge));
+                changed++;
+            }
+        }
+
+        if (changed == 0)
+        {
+            EditorUtility.DisplayDialog("BotXRGame",
+                "All " + entries.arraySize + " entries are already 0.100 m.", "OK");
+            return;
+        }
+
+        if (!EditorUtility.DisplayDialog("BotXRGame",
+                "Overwrite the physical edge of " + changed + " entries:\n\n  " +
+                string.Join("\n  ", before) +
+                "\n\nThis replaces hand-set values.", "Set to 100 mm", "Cancel"))
+            return;
+
+        for (int i = 0; i < entries.arraySize; i++)
+        {
+            var e = entries.GetArrayElementAtIndex(i);
+            var edgeP = e.FindPropertyRelative("_physicalEdge");
+            if (edgeP != null) edgeP.floatValue = edge;
+        }
+
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(db);
+        AssetDatabase.SaveAssets();
+
+        Debug.LogFormat("[Marker] set {0} entries to {1:F3} m", changed, edge);
+        EditorUtility.DisplayDialog("BotXRGame",
+            changed + " entries set to 0.100 m.\n\n" +
+            "Now press Create/Update on the database so the reference library " +
+            "picks up the new sizes - the library is what the runtime reads.",
+            "OK");
+    }
+
     private static Type FindType(string fullName)
     {
         foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())

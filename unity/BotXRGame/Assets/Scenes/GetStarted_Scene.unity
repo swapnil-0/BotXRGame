@@ -1247,6 +1247,7 @@ GameObject:
   - component: {fileID: 175247770}
   - component: {fileID: 175247776}
   - component: {fileID: 175247775}
+  - component: {fileID: 175247777}
   m_Layer: 0
   m_Name: XR Origin (VR)
   m_TagString: Untagged
@@ -1334,6 +1335,24 @@ MonoBehaviour:
       m_Calls: []
   m_PlanePrefab: {fileID: 0}
   m_DetectionMode: -1
+--- !u!114 &175247777
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 175247769}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dea56a9eaadd1c439095de4f9a371cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARTrackedImageManager
+  <trackablesChanged>k__BackingField:
+    m_PersistentCalls:
+      m_Calls: []
+  m_SerializedLibrary: {fileID: 0}
+  m_MaxNumberOfMovingImages: 0
+  m_TrackedImagePrefab: {fileID: 0}
 --- !u!1 &202111492
 GameObject:
   m_ObjectHideFlags: 0
@@ -4467,6 +4486,7 @@ GameObject:
   - component: {fileID: 1355259742}
   - component: {fileID: 1355259741}
   - component: {fileID: 1355259740}
+  - component: {fileID: 1355259743}
   m_Layer: 0
   m_Name: TagStandIn
   m_TagString: Untagged
@@ -4546,6 +4566,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1355259743
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355259739}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4b94abfe16471d41b9a890caafae2e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrackedImageTagSource
+  trackedImageManager: {fileID: 175247777}
+  expectedName: 
+  tagOutput: {fileID: 1355259742}
+  standInToDisable: {fileID: 0}
 --- !u!1 &1372258869
 GameObject:
   m_ObjectHideFlags: 0
@@ -6664,6 +6700,7 @@ MonoBehaviour:
   panel: {fileID: 1951686361}
   head: {fileID: 1329184599}
   distance: 1.2
+  panelScale: 0.45
   verticalOffset: 0.25
   deadAngle: 12
   followTime: 0.35

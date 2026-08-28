@@ -9,11 +9,20 @@ using UnityEngine;
 /// - and it looked like tag detection had failed when in fact identity
 /// resolution had.
 ///
-/// The marker only moves when the tag moves. The arrow carries all the motion:
-/// its direction and LENGTH are the commanded velocity, so a strong tornado
-/// pull is visibly a long arrow swinging away from where the stick is pointing.
-/// That difference between what you asked for and what is being sent is the
-/// thing worth seeing.
+/// The marker only moves when the tag moves. The arrows carry all the motion,
+/// and their LENGTH is magnitude, not just direction:
+///
+///   green   total command actually sent to the robot
+///   purple  the joystick's contribution
+///   orange  the tornado's contribution
+///
+/// Green is the sum of the other two, so the angle between green and purple is
+/// precisely how much the vortex is taking from the driver. One arrow could
+/// only show that something was wrong; three show what.
+///
+/// Before START only green appears, pointing at the start line - the stick is
+/// ignored during the approach and the tornado is not yet in play, so a split
+/// there would be two arrows of zero length.
 /// </summary>
 public class BotTagMarker : MonoBehaviour
 {
@@ -40,20 +49,31 @@ public class BotTagMarker : MonoBehaviour
     [Tooltip("Longest the arrow may draw, so a big pull cannot span the room.")]
     public float maxArrowLength = 0.6f;
 
-    [Header("Colour")]
-    public Color idleColour = new Color(0.2f, 0.95f, 0.35f);
-    public Color pulledColour = new Color(1f, 0.55f, 0.15f);
+    [Header("Colours")]
+    [Tooltip("Total command being sent - the sum of the other two.")]
+    public Color totalColour = new Color(0.2f, 0.95f, 0.35f);
 
-    [Tooltip("Tornado share of the command above which the arrow turns orange - " +
-             "the point where the robot is doing more of what the vortex wants " +
-             "than what you asked for.")]
-    [Range(0.1f, 1f)]
-    public float pulledFraction = 0.4f;
+    [Tooltip("Joystick contribution.")]
+    public Color stickColour = new Color(0.65f, 0.35f, 0.95f);
+
+    [Tooltip("Tornado contribution.")]
+    public Color tornadoColour = new Color(1f, 0.55f, 0.15f);
+
+    [Tooltip("Before START, only the green arrow shows, pointing at the start " +
+             "line. Splitting it into components there would be noise: the " +
+             "stick is ignored during the approach and the tornado is not yet " +
+             "in play.")]
+    public bool splitOnlyWhileRunning = true;
+
+    [Tooltip("Vertical spacing between the three arrows, metres. Without it " +
+             "they z-fight when the tornado contribution is small and the " +
+             "three nearly coincide.")]
+    public float arrowSpacing = 0.012f;
 
     private Transform dot;
     private LineRenderer stem;
-    private LineRenderer arrow;
-    private Material arrowMat;
+    private LineRenderer totalArrow, stickArrow, tornadoArrow;
+    private Material totalMat, stickMat, tornadoMat;
     private bool built;
 
     void Start()
@@ -94,10 +114,25 @@ public class BotTagMarker : MonoBehaviour
 
         stem = MakeLine("BotStem", mat, 0.004f, 0.004f);
 
-        // Its own material instance so the arrow can recolour without turning
-        // the dot and every other object sharing that material orange too.
-        arrowMat = mat != null ? new Material(mat) : null;
-        arrow = MakeLine("BotHeading", arrowMat, 0.012f, 0.001f);
+        // One material instance per arrow. Sharing would make all three the
+        // same colour, which defeats the entire point of splitting them.
+        totalMat = Tint(mat, totalColour);
+        stickMat = Tint(mat, stickColour);
+        tornadoMat = Tint(mat, tornadoColour);
+
+        // Total drawn thickest so it stays readable when the components
+        // overlap it almost exactly, which is the common case.
+        totalArrow = MakeLine("CmdTotal", totalMat, 0.014f, 0.001f);
+        stickArrow = MakeLine("CmdStick", stickMat, 0.008f, 0.001f);
+        tornadoArrow = MakeLine("CmdTornado", tornadoMat, 0.008f, 0.001f);
+    }
+
+    private static Material Tint(Material src, Color c)
+    {
+        if (src == null) return null;
+        var m = new Material(src);
+        m.color = c;
+        return m;
     }
 
     private LineRenderer MakeLine(string name, Material mat, float w0, float w1)
@@ -131,29 +166,69 @@ public class BotTagMarker : MonoBehaviour
         stem.SetPosition(0, p);
         stem.SetPosition(1, p + Vector3.up * dotHeight);
 
-        Vector3 cmd = mixer != null ? mixer.CommandVector : Vector3.zero;
-        cmd.y = 0f;
+        bool running = mixer != null &&
+                       mixer.CurrentPhase == BotCommandMixer.Phase.Running;
+        bool split = running || !splitOnlyWhileRunning;
 
-        float length = Mathf.Min(cmd.magnitude * metresPerUnitSpeed, maxArrowLength);
-        Vector3 dir = cmd.sqrMagnitude > 1e-6f ? cmd.normalized : Flat(tag.forward);
+        Vector3 basePos = p + Vector3.up * arrowSpacing;
 
-        Vector3 baseP = p + Vector3.up * 0.012f;
-        arrow.SetPosition(0, baseP);
-        arrow.SetPosition(1, baseP + dir * length);
-
-        if (arrowMat != null && mixer != null)
+        if (mixer == null)
         {
-            float total = mixer.CommandVector.magnitude;
-            float share = total > 1e-4f ? mixer.TornadoVector.magnitude / total : 0f;
-            arrowMat.color = share >= pulledFraction ? pulledColour : idleColour;
+            DrawArrow(totalArrow, basePos, Flat(tag.forward), 0.15f);
+            SetArrow(stickArrow, false);
+            SetArrow(tornadoArrow, false);
+            return;
         }
+
+        if (!split)
+        {
+            // Before START: one green arrow at the start line. The stick is
+            // ignored during the approach and the tornado is not in play, so
+            // three arrows here would be two arrows of zero length.
+            DrawArrow(totalArrow, basePos, mixer.ToStartDirection, 0.20f);
+            SetArrow(stickArrow, false);
+            SetArrow(tornadoArrow, false);
+            return;
+        }
+
+        // All three from the same origin, stacked slightly so they do not
+        // z-fight when the tornado contribution is small and they nearly
+        // coincide. Green is the sum, so green disagreeing with purple is
+        // exactly the amount the tornado is taking from you.
+        DrawVector(totalArrow, basePos, mixer.CommandVector);
+        DrawVector(stickArrow, basePos + Vector3.up * arrowSpacing, mixer.StickVector);
+        DrawVector(tornadoArrow, basePos + Vector3.up * arrowSpacing * 2f, mixer.TornadoVector);
+    }
+
+    private void DrawVector(LineRenderer lr, Vector3 from, Vector3 v)
+    {
+        v.y = 0f;
+        if (v.sqrMagnitude < 1e-6f) { SetArrow(lr, false); return; }
+
+        DrawArrow(lr, from, v.normalized,
+                  Mathf.Min(v.magnitude * metresPerUnitSpeed, maxArrowLength));
+    }
+
+    private void DrawArrow(LineRenderer lr, Vector3 from, Vector3 dir, float length)
+    {
+        if (lr == null) return;
+        SetArrow(lr, true);
+        lr.SetPosition(0, from);
+        lr.SetPosition(1, from + dir * length);
+    }
+
+    private static void SetArrow(LineRenderer lr, bool on)
+    {
+        if (lr != null && lr.enabled != on) lr.enabled = on;
     }
 
     private void SetVisible(bool v)
     {
         if (dot != null && dot.gameObject.activeSelf != v) dot.gameObject.SetActive(v);
         if (stem != null && stem.enabled != v) stem.enabled = v;
-        if (arrow != null && arrow.enabled != v) arrow.enabled = v;
+        SetArrow(totalArrow, v);
+        SetArrow(stickArrow, v);
+        SetArrow(tornadoArrow, v);
     }
 
     private static Vector3 Flat(Vector3 v)

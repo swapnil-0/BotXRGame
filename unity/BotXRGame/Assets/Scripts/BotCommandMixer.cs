@@ -64,6 +64,15 @@ public class BotCommandMixer : MonoBehaviour
 
     public Vector3 StickVector { get; private set; }
     public Vector3 TornadoVector { get; private set; }
+
+    /// <summary>
+    /// Direction to the start line, kept live in every phase.
+    ///
+    /// Needed while ARMED, where the command is deliberately zero so the robot
+    /// holds still - the marker still has to point somewhere, and "where you
+    /// are about to start from" is the useful thing to show.
+    /// </summary>
+    public Vector3 ToStartDirection { get; private set; } = Vector3.forward;
     public float DistanceToStart { get; private set; }
     public string Status { get; private set; } = "no tag";
 
@@ -120,6 +129,8 @@ public class BotCommandMixer : MonoBehaviour
         Vector3 toStart = start - here;
         toStart.y = 0f;
         DistanceToStart = toStart.magnitude;
+
+        if (toStart.sqrMagnitude > 1e-6f) ToStartDirection = toStart.normalized;
 
         if (!startPressed && DistanceToStart > arriveRadius)
         {

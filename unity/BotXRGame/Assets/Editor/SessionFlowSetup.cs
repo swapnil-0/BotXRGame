@@ -130,6 +130,31 @@ public static class SessionFlowSetup
                      (Camera.main != null ? " (head = " + Camera.main.name + ")"
                                           : "  head NULL - no MainCamera tag"));
 
+            // Button readout line on the HUD itself, since that is the panel
+            // that is always in view.
+            var inputGo = FindOrCreateUiChild(hudPanel.transform, "InputDebugText");
+            var inputText = GetOrAdd<TMPro.TextMeshProUGUI>(inputGo);
+            inputText.fontSize = 18;
+            inputText.color = new Color(0.75f, 0.85f, 1f);
+            inputText.alignment = TMPro.TextAlignmentOptions.BottomLeft;
+            inputText.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+
+            var irt = inputGo.GetComponent<RectTransform>();
+            irt.anchorMin = new Vector2(0f, 0f);
+            irt.anchorMax = new Vector2(1f, 0f);
+            irt.pivot = new Vector2(0.5f, 0f);
+            irt.offsetMin = new Vector2(10f, 6f);
+            irt.offsetMax = new Vector2(-10f, 40f);
+
+            var ih = GetOrAdd<InputDebugHUD>(hudPanel);
+            var ihWires = new Dictionary<string, Object> { { "text", inputText } };
+            var pub = Object.FindAnyObjectByType<ArmRosPublisher>();
+            if (pub != null) ihWires["armPublisher"] = pub;
+            Wire(ih, ihWires);
+
+            done.Add("InputDebugHUD text on " + hudPanel.name +
+                     " (run Bind All Controls to bind its actions)");
+
             var canvas = canvasRoot.GetComponentInParent<Canvas>();
             if (canvas != null && canvas.renderMode != RenderMode.WorldSpace)
             {
@@ -336,6 +361,19 @@ public static class SessionFlowSetup
 
         var arm = Object.FindAnyObjectByType<ArmController>();
         if (arm != null) { Overwrite(arm, "swingAction", swing); done.Add("ArmController.swingAction"); }
+
+        // Live button readout on the HUD. Bound here rather than in Wire
+        // Session Flow because it needs the same action references as the arm,
+        // and the point of the line is to prove those exact bindings are live.
+        var inputHud = Object.FindAnyObjectByType<InputDebugHUD>();
+        if (inputHud != null)
+        {
+            Overwrite(inputHud, "swingAction", swing);
+            Overwrite(inputHud, "kickAction", kick);
+            Overwrite(inputHud, "placeAction", place);
+            Overwrite(inputHud, "moveAction", move);
+            done.Add("InputDebugHUD: A/B/trigger/stick");
+        }
 
         // Same A/B on the mode menu. Those buttons are not otherwise live until
         // a mode is chosen, and this makes the menu usable without any UI

@@ -4487,6 +4487,7 @@ GameObject:
   - component: {fileID: 1355259741}
   - component: {fileID: 1355259740}
   - component: {fileID: 1355259743}
+  - component: {fileID: 1355259744}
   m_Layer: 0
   m_Name: TagStandIn
   m_TagString: Untagged
@@ -4581,7 +4582,27 @@ MonoBehaviour:
   trackedImageManager: {fileID: 175247777}
   expectedName: 
   tagOutput: {fileID: 1355259742}
-  standInToDisable: {fileID: 0}
+  standInToDisable: {fileID: 1355259744}
+--- !u!114 &1355259744
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355259739}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0cc7a1da553ac04e84b18a0e487793f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ControllerHeldStandIn
+  rayOrigin: {fileID: 23723604}
+  distance: 0.8
+  projectToFloor: 1
+  floorY: 0
+  heightAboveFloor: 0.02
+  holdAction: {fileID: 0}
+  pressThreshold: 0.5
+  onlyInAprilTagMode: 1
 --- !u!1 &1372258869
 GameObject:
   m_ObjectHideFlags: 0

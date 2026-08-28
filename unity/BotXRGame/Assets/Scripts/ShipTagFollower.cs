@@ -119,8 +119,15 @@ public class ShipTagFollower : MonoBehaviour
         ship.PoseDrivenExternally = true;
 
         Vector3 target = tagPos + Vector3.up * hoverHeight;
-        ship.transform.position = Vector3.SmoothDamp(
-            ship.transform.position, target, ref velocity, smoothTime);
+
+        // MoveCenterTo, not transform.position. Writing the transform put the
+        // ship's PIVOT over the tag, and the model sits forward of its pivot -
+        // so the ship appeared in front of the marker rather than above it.
+        // Everything else in this project positions the ship by its visible
+        // centre; this was the last place still using the raw transform.
+        Vector3 smoothed = Vector3.SmoothDamp(
+            ship.Center, target, ref velocity, smoothTime);
+        ship.MoveCenterTo(smoothed);
 
         if (followYaw)
         {

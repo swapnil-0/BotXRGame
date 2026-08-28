@@ -194,6 +194,13 @@ public class ScoreBoard : MonoBehaviour
                     mixer.CommandVector.magnitude,
                     mixer.StickVector.magnitude,
                     mixer.TornadoVector.magnitude);
+
+                // Say what is being waited for. "One green arrow and no START
+                // button" is correct behaviour in APPROACH, but it is
+                // indistinguishable from a broken build unless the screen says
+                // so - which cost a whole test cycle.
+                if (mixer.CurrentPhase == BotCommandMixer.Phase.Approach)
+                    sb.Append("press START for stick + tornado (3 arrows)\n");
             }
             else
             {

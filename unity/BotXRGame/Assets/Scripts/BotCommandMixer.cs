@@ -56,6 +56,16 @@ public class BotCommandMixer : MonoBehaviour
 
     [Range(0f, 0.9f)] public float stickDeadzone = 0.15f;
 
+    [Header("Testing")]
+    [Tooltip("Offer START during the approach as well as on arrival.\n\n" +
+             "Without a robot nothing drives the tag to the start line, so the " +
+             "phase never leaves APPROACH and everything after it - START, the " +
+             "split arrows, the tornado pull - is unreachable. That made the " +
+             "second half of the flow untestable without hardware, which is " +
+             "most of the time.\n\n" +
+             "Harmless with a robot present: it just means you may start early.")]
+    public bool allowStartBeforeArrival = true;
+
     // --- read by the marker and the HUD ---------------------------------
     public Phase CurrentPhase { get; private set; } = Phase.NoTag;
 
@@ -93,13 +103,15 @@ public class BotCommandMixer : MonoBehaviour
     /// <summary>Called by the floating START button.</summary>
     public void PressStart()
     {
-        if (CurrentPhase != Phase.Armed) return;
+        if (!AwaitingStart) return;
         startPressed = true;
-        Debug.Log("[Bot] START pressed - joystick live");
+        Debug.LogFormat("[Bot] START pressed in {0} - joystick live", CurrentPhase);
     }
 
     /// <summary>True while the START button should be visible.</summary>
-    public bool AwaitingStart => CurrentPhase == Phase.Armed;
+    public bool AwaitingStart =>
+        CurrentPhase == Phase.Armed ||
+        (allowStartBeforeArrival && CurrentPhase == Phase.Approach);
 
     void Update()
     {

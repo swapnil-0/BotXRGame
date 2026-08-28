@@ -1097,6 +1097,62 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 96426170}
   m_CullTransparentMesh: 1
+--- !u!1 &101038746
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 101038748}
+  - component: {fileID: 101038747}
+  m_Layer: 0
+  m_Name: BotTagMarker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &101038747
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 101038746}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dbf35e498e61ff4ea47c0f5d6de2d1c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BotTagMarker
+  tagTracker: {fileID: 175247778}
+  mixer: {fileID: 1614957528}
+  markerMaterial: {fileID: 2100000, guid: 8679535c100bd2f46af18d7bf2ee30ac, type: 2}
+  dotSize: 0.07
+  dotHeight: 0.1
+  metresPerUnitSpeed: 1.2
+  maxArrowLength: 0.6
+  totalColour: {r: 0.2, g: 0.95, b: 0.35, a: 1}
+  stickColour: {r: 0.65, g: 0.35, b: 0.95, a: 1}
+  tornadoColour: {r: 1, g: 0.55, b: 0.15, a: 1}
+  splitOnlyWhileRunning: 1
+  arrowSpacing: 0.012
+--- !u!4 &101038748
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 101038746}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &123309414
 GameObject:
   m_ObjectHideFlags: 0
@@ -1234,6 +1290,60 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 123309414}
   m_CullTransparentMesh: 1
+--- !u!1 &134182560
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 134182562}
+  - component: {fileID: 134182561}
+  m_Layer: 0
+  m_Name: StartButton
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &134182561
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 134182560}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3291fda7ebc737b43add7c268063724d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FloatingStartButton
+  mixer: {fileID: 1614957528}
+  rayOrigin: {fileID: 23723604}
+  pressAction: {fileID: -2413873833342219222, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  pressThreshold: 0.5
+  run: {fileID: 861330930}
+  height: 0.35
+  size: {x: 0.26, y: 0.12}
+  buttonMaterial: {fileID: 0}
+  idleColour: {r: 0.15, g: 0.55, b: 0.25, a: 1}
+  hoverColour: {r: 0.25, g: 0.9, b: 0.4, a: 1}
+--- !u!4 &134182562
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 134182560}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &175247769
 GameObject:
   m_ObjectHideFlags: 0
@@ -4059,6 +4169,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArmRosPublisher
   topicName: /arm_command
+  armPort: 10001
+  armIP: 
+  fallBackToMainConnection: 1
   publishInVirtualBotMode: 1
   swingAction: {fileID: -6014808934006281698, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   kickAction: {fileID: -9129376883668913906, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
@@ -4645,7 +4758,6 @@ GameObject:
   - component: {fileID: 1355259740}
   - component: {fileID: 1355259743}
   - component: {fileID: 1355259744}
-  - component: {fileID: 1355259745}
   m_Layer: 0
   m_Name: TagStandIn
   m_TagString: Untagged
@@ -4761,25 +4873,6 @@ MonoBehaviour:
   holdAction: {fileID: 0}
   pressThreshold: 0.5
   onlyInAprilTagMode: 1
---- !u!114 &1355259745
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1355259739}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2dbf35e498e61ff4ea47c0f5d6de2d1c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BotTagMarker
-  tagTransform: {fileID: 1355259742}
-  robot: {fileID: 1614957523}
-  startupDrive: {fileID: 1614957525}
-  markerMaterial: {fileID: 2100000, guid: 8679535c100bd2f46af18d7bf2ee30ac, type: 2}
-  dotSize: 0.07
-  dotHeight: 0.1
-  arrowLength: 0.3
 --- !u!1 &1372258869
 GameObject:
   m_ObjectHideFlags: 0
@@ -5539,7 +5632,7 @@ PrefabInstance:
       addedObject: {fileID: 1614957523}
     - targetCorrespondingSourceObject: {fileID: 2762921764261478860, guid: 12a8f24c67e94c379c1877090b48c017, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1614957525}
+      addedObject: {fileID: 1614957528}
   m_SourcePrefab: {fileID: 100100000, guid: 12a8f24c67e94c379c1877090b48c017, type: 3}
 --- !u!1 &1614957522 stripped
 GameObject:
@@ -5576,7 +5669,7 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3250488527962512246, guid: 12a8f24c67e94c379c1877090b48c017, type: 3}
   m_PrefabInstance: {fileID: 1614957521}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1614957525
+--- !u!114 &1614957528
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -5585,17 +5678,21 @@ MonoBehaviour:
   m_GameObject: {fileID: 1614957522}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b6c4dd6bec3ec3243aebddd41dba9f22, type: 3}
+  m_Script: {fileID: 11500000, guid: 9da8cef2a4909fa4bac8aa81abe588d8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BotStartupDrive
-  botTag: {fileID: 0}
-  run: {fileID: 0}
-  placer: {fileID: 0}
-  arriveRadius: 0.12
+  m_EditorClassIdentifier: Assembly-CSharp::BotCommandMixer
+  tagTracker: {fileID: 175247778}
+  robot: {fileID: 1614957523}
+  run: {fileID: 861330930}
+  placer: {fileID: 861330929}
+  moveAction: {fileID: -7185608374540891126, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  arriveRadius: 0.15
   approachSpeed: 0.12
-  approachTurnRate: 0.8
   turnFirstAngle: 35
-  timeoutSeconds: 30
+  driveSpeed: 0.18
+  turnRate: 1.2
+  tornadoInfluence: 1
+  stickDeadzone: 0.15
 --- !u!1 &1651258539
 GameObject:
   m_ObjectHideFlags: 0
@@ -6687,6 +6784,58 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1846187901}
   m_CullTransparentMesh: 1
+--- !u!1 &1881379683
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1881379685}
+  - component: {fileID: 1881379684}
+  m_Layer: 0
+  m_Name: CupTagMarkers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1881379684
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1881379683}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14540267bd742f14aa977afa8869e9a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CupTagMarkers
+  tracker: {fileID: 175247778}
+  markerMaterial: {fileID: 2100000, guid: 8679535c100bd2f46af18d7bf2ee30ac, type: 2}
+  height: 0.16
+  dotSize: 0.045
+  labelSize: 0.06
+  uprightColour: {r: 0.25, g: 0.9, b: 0.4, a: 1}
+  toppledColour: {r: 1, g: 0.35, b: 0.25, a: 1}
+  lostColour: {r: 0.55, g: 0.55, b: 0.6, a: 1}
+--- !u!4 &1881379685
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1881379683}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1934027093
 GameObject:
   m_ObjectHideFlags: 0
@@ -7892,3 +8041,6 @@ SceneRoots:
   - {fileID: 2119988583}
   - {fileID: 1818969687}
   - {fileID: 1355259742}
+  - {fileID: 1881379685}
+  - {fileID: 134182562}
+  - {fileID: 101038748}

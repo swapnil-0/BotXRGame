@@ -40,7 +40,9 @@ public class ArmRosPublisher : MonoBehaviour
              "a swing even when no robot is listening.")]
     public ArmController localArm;
 
-    [Header("Status, read by the HUD")]
+    // --- status, read by the HUD -----------------------------------------
+    // Plain comment, not [Header]: HeaderAttribute is AttributeTargets.Field,
+    // so putting it on a property is a compile error (CS0592).
     public string LastCommand { get; private set; } = "-";
     public int SwingsSent { get; private set; }
     public string Status { get; private set; } = "idle";

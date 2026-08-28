@@ -119,13 +119,27 @@ public class ArmRosPublisher : MonoBehaviour
     {
         if (!registered) TryRegister();
 
+        bool swing = Pressed(swingAction, pressThreshold);
+        bool kick = Pressed(kickAction, pressThreshold);
+
+        // A and B double as the mode-select buttons, so the press that picks a
+        // mode would otherwise also publish a SWING - firing a real arm command
+        // at the robot before the run has even started. Swallow presses until a
+        // mode is chosen, recording their state so the release does not then
+        // register as a fresh edge.
+        if (!GameMode.Chosen)
+        {
+            swingWasPressed = swing;
+            kickWasPressed = kick;
+            Status = "waiting for mode selection";
+            return;
+        }
+
         // Rising edge only. Reading the level would fire every frame the button
         // is held, flooding the topic.
-        bool swing = Pressed(swingAction, pressThreshold);
         if (swing && !swingWasPressed) Send(swingActionName);
         swingWasPressed = swing;
 
-        bool kick = Pressed(kickAction, pressThreshold);
         if (kick && !kickWasPressed) Send(kickActionName);
         kickWasPressed = kick;
     }

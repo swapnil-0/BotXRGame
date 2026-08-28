@@ -1,6 +1,6 @@
 # BotXRGame scene report
 
-Generated: 2026-08-28 08:09:02
+Generated: 2026-08-28 09:38:07
 Scene: GetStarted_Scene  (Assets/Scenes/GetStarted_Scene.unity)
 Unity: 6000.4.2f1
 
@@ -14,7 +14,7 @@ Collectibles
     Star_Model   [MeshFilter, MeshRenderer]
   Collectible_Star (3)   [BoxCollider, Pickup]
     Star_Model   [MeshFilter, MeshRenderer]
-XR Origin (VR)   [XROrigin, InputActionManager, ARPlaneManager, ARRaycastManager]
+XR Origin (VR)   [XROrigin, InputActionManager, ARPlaneManager, ARRaycastManager, ARTrackedImageManager]
   Camera Offset
     Main Camera   [Camera, AudioListener, TrackedPoseDriver, UniversalAdditionalCameraData, ARCameraManager]
     Ray Interactor   [XRRayInteractor, LineRenderer, XRInteractorLineVisual, SortingGroup, TrackedPoseDriver]
@@ -68,7 +68,7 @@ ScoreCanvas   [Canvas, CanvasScaler, GraphicRaycaster, ScoreBoard]
   Headline   [CanvasRenderer, TextMeshProUGUI]
   Body   [CanvasRenderer, TextMeshProUGUI]
   Debug   [CanvasRenderer, TextMeshProUGUI]
-TagStandIn   [MeshFilter, MeshRenderer]
+TagStandIn   [MeshFilter, MeshRenderer, TrackedImageTagSource]
 ```
 
 ## UI plumbing
@@ -77,15 +77,15 @@ EventSystem count: 1
   EventSystem
      component: EventSystem
      component: InputSystemUIInputModule
-Canvas 'ScoreCanvas'
-   renderMode : WorldSpace
-   worldCamera: NULL
-   raycaster  : yes
-   scale      : (0.0010, 0.0010, 0.0010)
 Canvas 'Canvas'
    renderMode : WorldSpace
    worldCamera: Main Camera
-   raycaster  : NO  <-- buttons will not receive clicks
+   raycaster  : TrackedDeviceGraphicRaycaster
+   scale      : (0.0010, 0.0010, 0.0010)
+Canvas 'ScoreCanvas'
+   renderMode : WorldSpace
+   worldCamera: NULL
+   raycaster  : GraphicRaycaster
    scale      : (0.0010, 0.0010, 0.0010)
 ```
 
@@ -124,8 +124,9 @@ on: Canvas
 ```
 on: Canvas/HUDPanel
    panel                        = HUDPanel (RectTransform)
-   head                         = NULL   <-- unassigned
+   head                         = Main Camera (Transform)
    distance                     = 1.2000
+   panelScale                   = 0.4500
    verticalOffset               = 0.2500
    deadAngle                    = 12.0000
    followTime                   = 0.3500
@@ -281,7 +282,7 @@ on: ShipRoot/Fighter03
    angularSpeed                 = 1.5000
    moveAction                   = Bot/Move (InputActionReference)
    triggerAction                = XRI Right Interaction/Activate Value (InputActionReference)
-   moveInSimulation             = True
+   moveInSimulation             = False
 
 ```
 

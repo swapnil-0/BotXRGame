@@ -102,6 +102,10 @@ public static class SceneReport
         {
             typeof(ModeSelectMenu), typeof(ROSIPConfig), typeof(HeadLockedHUD),
             typeof(ArmRosPublisher), typeof(ShipTagFollower),
+            // Added after the first report shipped without them: both appeared
+            // in the hierarchy dump but had no settings block, so their fields
+            // could not be checked - which is the entire point of the report.
+            typeof(TrackedImageTagSource), typeof(ControllerHeldStandIn),
             typeof(ArenaPlacer), typeof(ArenaRun), typeof(ScoreBoard),
             typeof(GhostBot), typeof(ShipVisualLock), typeof(CenterMarker),
             typeof(RobotController), typeof(ArmController),

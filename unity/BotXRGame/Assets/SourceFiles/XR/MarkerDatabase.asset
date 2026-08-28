@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Google.XR.Extensions::Google.XR.Extensions.XRMarkerDatabase
   _entries:
   - _dictionary: 19
-    _allMarkers: 1
+    _allMarkers: 0
     _markerId: 0
     _physicalEdge: 0.1
   _imageLibrary: {fileID: 11400000, guid: 8d639fc7f495d2540ba48d9ceb4bce25, type: 2}

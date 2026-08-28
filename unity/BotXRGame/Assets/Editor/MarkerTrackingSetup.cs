@@ -35,7 +35,12 @@ public static class MarkerTrackingSetup
     private const int BotMarkerId = 0;
     private const float BotEdgeMetres = 0.100f;
 
-    private const int CupCount = 4;              // ids 1..4
+    // ids 1..10. More than the four cups in play on purpose: an entry costs
+    // nothing at runtime if its tag is never shown, whereas a tag whose id has
+    // no entry simply does not resolve - and diagnosing that mid-test, with a
+    // printed tag in hand that the headset ignores, is exactly the kind of
+    // dead end worth pre-empting.
+    private const int CupCount = 10;             // ids 1..10
     private const float CupEdgeMetres = 0.040f;  // MUST match what you print
 
     [MenuItem("Tools/BotXRGame/Set Up AprilTag Tracking", false, 42)]

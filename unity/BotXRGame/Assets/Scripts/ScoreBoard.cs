@@ -43,6 +43,7 @@ public class ScoreBoard : MonoBehaviour
     private Tornado tornado;
     private GhostBot ship;
     private TrackedImageTagSource tagSource;
+    private ShipTagFollower follower;
     [Tooltip("Fallback only. The live value is read from an actual cup, so " +
              "this cannot drift out of sync with the real collect radius the " +
              "way a hardcoded 0.28 did.")]
@@ -178,6 +179,19 @@ public class ScoreBoard : MonoBehaviour
             if (tagSource == null) tagSource = FindAnyObjectByType<TrackedImageTagSource>();
             sb.AppendFormat("tag {0}\n",
                 tagSource != null ? tagSource.Status : "no TrackedImageTagSource");
+
+            // Offset from the tag to the ship's visible centre, in world axes.
+            // "In front rather than above" is a judgement about depth made
+            // through passthrough, which has already been wrong twice in this
+            // project. This turns it into three numbers: up should be the
+            // hover height and the other two should be ~0.
+            if (follower == null) follower = FindAnyObjectByType<ShipTagFollower>();
+            if (follower != null && follower.tagTransform != null)
+            {
+                Vector3 d = c - follower.tagTransform.position;
+                sb.AppendFormat("tag->ship  right {0:F2}  up {1:F2}  fwd {2:F2}  (hover {3:F2})\n",
+                    d.x, d.y, d.z, follower.hoverHeight);
+            }
         }
 
         if (CollectibleCup.Active.Count == 0)

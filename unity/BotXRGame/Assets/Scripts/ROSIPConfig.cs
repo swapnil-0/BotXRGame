@@ -50,6 +50,13 @@ public class ROSIPConfig : MonoBehaviour
     {
         if (ipInputPanel != null) ipInputPanel.SetActive(true);
         if (hudPanel != null) hudPanel.SetActive(false);
+
+        // Spell out the exit. With no robot on the network, Connect fails and
+        // leaves you on this panel with the HUD still hidden - which reads as
+        // "the HUD is broken" rather than "you never got past the connect
+        // screen".
+        if (ipStatusText != null)
+            ipStatusText.text = "Connect to a robot, or press Skip to play without one.";
     }
 
     /// <summary>

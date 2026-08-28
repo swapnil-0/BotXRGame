@@ -1,6 +1,6 @@
 # BotXRGame scene report
 
-Generated: 2026-08-28 09:49:53
+Generated: 2026-08-28 10:27:58
 Scene: GetStarted_Scene  (Assets/Scenes/GetStarted_Scene.unity)
 Unity: 6000.4.2f1
 
@@ -77,15 +77,15 @@ EventSystem count: 1
   EventSystem
      component: EventSystem
      component: InputSystemUIInputModule
-Canvas 'Canvas'
-   renderMode : WorldSpace
-   worldCamera: Main Camera
-   raycaster  : TrackedDeviceGraphicRaycaster
-   scale      : (0.0010, 0.0010, 0.0010)
 Canvas 'ScoreCanvas'
    renderMode : WorldSpace
    worldCamera: NULL
    raycaster  : GraphicRaycaster
+   scale      : (0.0010, 0.0010, 0.0010)
+Canvas 'Canvas'
+   renderMode : WorldSpace
+   worldCamera: Main Camera
+   raycaster  : TrackedDeviceGraphicRaycaster
    scale      : (0.0010, 0.0010, 0.0010)
 ```
 
@@ -99,7 +99,11 @@ Canvas 'ScoreCanvas'
 4 reference library on database      : MarkerReferenceLibrary
 5 ARTrackedImageManager              : on XR Origin (VR) (enabled)
 6 manager referenceLibrary           : MarkerReferenceLibrary  (1 images)
-7 TrackedImageTagSource              : TagStandIn  status: no manager
+7 TrackedImageTagSource              : TagStandIn
+     manager   : XR Origin (VR)
+     tagOutput : TagStandIn
+     standInToDisable : TagStandIn
+     (status is runtime-only; blank in edit mode)
 8 duplicate XR settings folders      : Assets/XR/Settings 1, Assets/XR/Settings 2, Assets/XR/Settings 3, Assets/XR 1, Assets/XR 2, Assets/XR 3  <-- an earlier XR settings write failed
 ```
 
@@ -141,6 +145,7 @@ on: Canvas/HUDPanel
    head                         = Main Camera (Transform)
    distance                     = 1.2000
    panelScale                   = 0.4500
+   textScale                    = 1.8000
    verticalOffset               = 0.2500
    deadAngle                    = 12.0000
    followTime                   = 0.3500
@@ -182,7 +187,7 @@ on: TagStandIn
    trackedImageManager          = XR Origin (VR) (ARTrackedImageManager)
    expectedName                 = ""
    tagOutput                    = TagStandIn (Transform)
-   standInToDisable             = NULL   <-- unassigned
+   standInToDisable             = TagStandIn (ControllerHeldStandIn)
 
 ```
 

@@ -107,6 +107,57 @@ def check_attr_on_property(path):
     return problems
 
 
+
+def check_shadowed_locals(path):
+    """
+    A local declared while the same name is already live in an ENCLOSING scope
+    (CS0136), or twice in the same scope (CS0128).
+
+    Tracks real brace scopes rather than splitting on method signatures. The
+    naive version flagged siblings - two methods each with a 'var go', or two
+    else-branches each with a 'var lib' - which C# allows. Four false positives
+    for one real catch is a check nobody reads, so it earns its place only by
+    being accurate.
+    """
+    src = strip_code(open(path, encoding="utf-8", errors="replace").read())
+
+    decl = re.compile(r"\bvar\s+([A-Za-z_][A-Za-z0-9_]*)\s*=")
+    problems = []
+    stack = [{}]        # one dict of names per open brace scope
+    i = 0
+
+    while i < len(src):
+        c = src[i]
+
+        if c == "{":
+            stack.append({})
+            i += 1
+            continue
+
+        if c == "}":
+            if len(stack) > 1:
+                stack.pop()
+            i += 1
+            continue
+
+        m = decl.match(src, i)
+        if m:
+            name = m.group(1)
+            # Live if declared in this scope or any scope enclosing it.
+            for scope in stack:
+                if name in scope:
+                    problems.append(
+                        f"local '{name}' shadows one already in scope (CS0136/CS0128)")
+                    break
+            stack[-1][name] = True
+            i = m.end()
+            continue
+
+        i += 1
+
+    return sorted(set(problems))
+
+
 def main():
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
     base = os.path.join(root, "unity", "BotXRGame", "Assets")
@@ -130,6 +181,10 @@ def main():
             failures += 1
 
         for p in check_attr_on_property(f):
+            print(f"FAIL {rel}: {p}")
+            failures += 1
+
+        for p in check_shadowed_locals(f):
             print(f"FAIL {rel}: {p}")
             failures += 1
 

@@ -465,8 +465,10 @@ public static class SessionFlowSetup
             // Grip, not the index trigger. The trigger collides with the system
             // screenshot gesture, so opening the tuner and capturing what it
             // showed were mutually exclusive.
-            var menu = FindActionReference("Bot", "Menu");
-            Overwrite(tuner, "toggleAction", menu != null ? menu : place);
+            // menuAction, not menu: BindRightController already uses 'menu' for
+            // the ModeSelectMenu further down the same method (CS0136).
+            var menuAction = FindActionReference("Bot", "Menu");
+            Overwrite(tuner, "toggleAction", menuAction != null ? menuAction : place);
             Overwrite(tuner, "moveAction", move);
             Overwrite(tuner, "saveAction", swing);     // A
             Overwrite(tuner, "resetAction", kick);     // B

@@ -75,9 +75,15 @@ public static class SceneReport
                               : "   <-- HeadLockedHUD only works on WorldSpace"));
             sb.AppendLine("   worldCamera: " + (canvas.worldCamera == null
                               ? "NULL" : canvas.worldCamera.name));
+            // Any BaseRaycaster, not GraphicRaycaster specifically. XR scenes
+            // use TrackedDeviceGraphicRaycaster, which does NOT derive from
+            // GraphicRaycaster - checking for the concrete type reported
+            // "buttons will not receive clicks" on a canvas that was correctly
+            // set up for XR. A check that cries wolf is worse than none.
+            var rc = canvas.GetComponent<UnityEngine.EventSystems.BaseRaycaster>();
             sb.AppendLine("   raycaster  : " +
-                          (canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>() != null
-                              ? "yes" : "NO  <-- buttons will not receive clicks"));
+                          (rc != null ? rc.GetType().Name
+                                      : "NONE  <-- buttons will not receive clicks"));
             sb.AppendLine("   scale      : " + canvas.transform.localScale.ToString("F4"));
         }
         sb.AppendLine("```");

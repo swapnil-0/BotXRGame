@@ -544,7 +544,15 @@ public class ArenaPlacer : MonoBehaviour
                                arenaSize * tornadoPatrolFraction,
                                periods[i], phases[i]);
 
-            if (run != null) tornado.OnCaptured += run.HandleCapture;
+            if (run != null)
+            {
+                tornado.OnCaptured += run.HandleCapture;
+
+                // ArenaRun.tornado is only used for its HUD telemetry line and
+                // was never assigned, so that line has been silently blank the
+                // whole time. First spawned tornado, matching the board.
+                if (i == 0 && run.tornado == null) run.tornado = tornado;
+            }
 
             // Point the board at a tornado we KNOW came from here, rather than
             // letting it grab an arbitrary one out of the scene.

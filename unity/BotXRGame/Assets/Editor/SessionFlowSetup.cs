@@ -92,12 +92,43 @@ public static class SessionFlowSetup
         });
         done.Add("ModeSelectMenu wired to ROSIPConfig");
 
+        // ------------------------------------- the second mover, finally found
+        // RobotController sits on the ship's MESH child with moveInSimulation
+        // on, so it moved and rotated Fighter03 from the same stick that
+        // GhostBot uses to move ShipRoot. Two movers on one hierarchy: the
+        // ship's nose drifted off its direction of travel, and ShipVisualLock
+        // has been overwriting the result every frame ever since.
+        //
+        // RobotController still publishes /cmd_vel - only its local transform
+        // writing is switched off, which is the half that was never wanted here.
+        foreach (var rc in Object.FindObjectsByType<RobotController>(FindObjectsInactive.Include))
+        {
+            var so = new SerializedObject(rc);
+            var p = so.FindProperty("moveInSimulation");
+            if (p != null && p.boolValue)
+            {
+                p.boolValue = false;
+                so.ApplyModifiedProperties();
+                done.Add("RobotController.moveInSimulation OFF on " +
+                         HierarchyPath(rc.transform) + " (was the mesh drift)");
+            }
+        }
+
         // ---------------------------------------------------- HeadLockedHUD
         if (hudPanel != null)
         {
             var hl = GetOrAdd<HeadLockedHUD>(hudPanel);
-            Wire(hl, new Dictionary<string, Object> { { "panel", hudPanel.transform } });
-            done.Add("HeadLockedHUD on " + hudPanel.name);
+            var hudWires = new Dictionary<string, Object> { { "panel", hudPanel.transform } };
+
+            // head falls back to Camera.main at runtime, but Camera.main
+            // depends on the MainCamera tag being set, which is one more thing
+            // that can silently be wrong on a test day.
+            if (Camera.main != null) hudWires["head"] = Camera.main.transform;
+            Wire(hl, hudWires);
+
+            done.Add("HeadLockedHUD on " + hudPanel.name +
+                     (Camera.main != null ? " (head = " + Camera.main.name + ")"
+                                          : "  head NULL - no MainCamera tag"));
 
             var canvas = canvasRoot.GetComponentInParent<Canvas>();
             if (canvas != null && canvas.renderMode != RenderMode.WorldSpace)
@@ -382,6 +413,13 @@ public static class SessionFlowSetup
             }
         }
         return null;
+    }
+
+    private static string HierarchyPath(Transform t)
+    {
+        string s = t.name;
+        while (t.parent != null) { t = t.parent; s = t.name + "/" + s; }
+        return s;
     }
 
     private static T GetOrAdd<T>(GameObject go) where T : Component

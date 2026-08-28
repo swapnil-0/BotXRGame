@@ -243,8 +243,8 @@ public static class SessionFlowSetup
                 "This OVERWRITES existing input bindings:\n\n" +
                 "  Move  -> right thumbstick\n" +
                 "  Place -> right trigger\n" +
-                "  Swing -> A (primaryButton)\n" +
-                "  Kick  -> B (secondaryButton)\n\n" +
+                "  Swing -> A (primaryButton)   sends SWING\n" +
+                "  Stow  -> B (secondaryButton) sends STOW\n\n" +
                 "Your current move/place bindings will be replaced.",
                 "Bind", "Cancel"))
             return;
@@ -282,8 +282,8 @@ public static class SessionFlowSetup
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
 
         string msg = "Bound to right controller:\n  " + string.Join("\n  ", done) +
-                     "\n\nNote: bot_sim accepts SWING and STOW only. It will log " +
-                     "'unknown arm action' for KICK until the robot side adds it.";
+                     "\n\nA sends SWING, B sends STOW - both implemented on the " +
+                     "robot side, so neither will be rejected.";
         Debug.Log("[BotXRGame] " + msg);
         EditorUtility.DisplayDialog("BotXRGame - Controls", msg, "OK");
     }

@@ -24,25 +24,35 @@ public class ArmRosPublisher : MonoBehaviour
     public bool publishInVirtualBotMode = true;
 
     [Header("Input - both on the right controller")]
-    [Tooltip("A button. Publishes the swing action string.")]
+    [Tooltip("A button. Publishes the primary action string.")]
     public InputActionReference swingAction;
 
-    [Tooltip("B button. Publishes the kick action string.")]
+    [Tooltip("B button. Publishes the secondary action string.\n\n" +
+             "Field is still named kickAction: renaming a serialized field " +
+             "silently drops whatever is bound to it, and that class of bug has " +
+             "already cost this project several build cycles. The name is " +
+             "cosmetic; the action it sends is set below.")]
     public InputActionReference kickAction;
 
     [Range(0.1f, 0.9f)]
     public float pressThreshold = 0.5f;
 
     [Header("ROS action names")]
-    [Tooltip("Payload action for the A button. bot_sim accepts SWING and STOW.")]
+    [Tooltip("Payload action for the A button.")]
     public string swingActionName = "SWING";
 
     [Tooltip("Payload action for the B button.\n\n" +
-             "bot_sim currently REJECTS this - it accepts only SWING and STOW " +
-             "and logs 'unknown arm action' for anything else. The robot side " +
-             "has to add it. Left as a field so it can be renamed to match " +
-             "whatever the ROS dev implements without another Unity build.")]
-    public string kickActionName = "KICK";
+             "STOW, not KICK: the robot side implements SWING and STOW, and " +
+             "inventing a command it does not understand only produces warnings " +
+             "in its log. Track what exists rather than what we wish existed.\n\n" +
+             "STOW aborts a swing in progress and returns the arm to stowed, " +
+             "which is a genuinely useful second button - it is the recovery " +
+             "control when the arm is mid-stroke and about to hit something.")]
+    public string kickActionName = "STOW";
+
+    [Tooltip("Actions treated as an abort: no cooldown, no local swing " +
+             "animation. Comma separated.")]
+    public string abortActions = "STOW";
 
     [Tooltip("Minimum seconds between swings. The robot arm takes over a second " +
              "to complete its arc, so a button held down would otherwise queue " +
@@ -120,19 +130,34 @@ public class ArmRosPublisher : MonoBehaviour
         kickWasPressed = kick;
     }
 
+    private bool IsAbort(string actionName)
+    {
+        if (string.IsNullOrEmpty(abortActions)) return false;
+        foreach (var part in abortActions.Split(','))
+            if (part.Trim().Equals(actionName, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
+    }
+
     private void Send(string actionName)
     {
-        if (Time.time - lastSendTime < cooldownSeconds)
+        bool abort = IsAbort(actionName);
+
+        // An abort must never be rate-limited. The cooldown exists because the
+        // arm's arc outlasts a button press, but STOW is precisely what you
+        // press DURING that arc - blocking it would disable the control exactly
+        // when it is needed, with the arm mid-stroke and heading somewhere bad.
+        if (!abort && Time.time - lastSendTime < cooldownSeconds)
         {
             Status = string.Format("cooldown {0:F1}s",
                 cooldownSeconds - (Time.time - lastSendTime));
             return;
         }
 
-        // Local animation regardless, so the headset gives feedback even with
-        // no robot connected - a silent button is indistinguishable from a
-        // broken one.
-        if (localArm != null) localArm.RequestSwing();
+        // Local animation for a swing only, and regardless of connection, so a
+        // silent button is not indistinguishable from a broken one. An abort
+        // plays no swing - it is the opposite of one.
+        if (localArm != null && !abort) localArm.RequestSwing();
 
         if (!publishInVirtualBotMode && !GameMode.IsAprilTag)
         {
@@ -151,12 +176,16 @@ public class ArmRosPublisher : MonoBehaviour
         // Built here rather than via ArmController.BuildRosCommand so the action
         // name is not hardcoded to SWING. Same shape, same parser on the robot.
         //
-        // Yaw stays 0: the stroke is straight ahead of the robot, and aiming
-        // needs a cup-relative bearing that does not exist until cup detection
-        // is running.
-        string payload = string.Format(
-            System.Globalization.CultureInfo.InvariantCulture,
-            "{{\"action\":\"{0}\",\"yaw\":{1:F3}}}", actionName, 0f);
+        // STOW carries no yaw: bot_sim reads only "action" for it, and sending
+        // a meaningless field invites someone later to assume it means
+        // something. Yaw stays 0 on a swing too - the stroke is straight ahead,
+        // and aiming needs a cup-relative bearing that does not exist until cup
+        // detection runs.
+        string payload = abort
+            ? string.Format("{{\"action\":\"{0}\"}}", actionName)
+            : string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "{{\"action\":\"{0}\",\"yaw\":{1:F3}}}", actionName, 0f);
 
         ros.Publish(topicName, new StringMsg(payload));
 

@@ -155,6 +155,10 @@ public static class SessionFlowSetup
             var ihWires = new Dictionary<string, Object> { { "text", inputText } };
             var pub = Object.FindAnyObjectByType<ArmRosPublisher>();
             if (pub != null) ihWires["armPublisher"] = pub;
+            var rcForHud = Object.FindAnyObjectByType<RobotController>();
+            if (rcForHud != null) ihWires["robot"] = rcForHud;
+            var mixForHud = Object.FindAnyObjectByType<BotCommandMixer>();
+            if (mixForHud != null) ihWires["mixer"] = mixForHud;
             Wire(ih, ihWires);
 
             done.Add("InputDebugHUD text on " + hudPanel.name +

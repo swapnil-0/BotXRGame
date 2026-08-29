@@ -29,6 +29,16 @@ public class InputDebugHUD : MonoBehaviour
              "is the other half of 'I pressed it and nothing happened'.")]
     public ArmRosPublisher armPublisher;
 
+    [Tooltip("Drive link telemetry. 'ROS did not work' has at least three " +
+             "distinct causes that look identical from a headset: never " +
+             "connected, connected but sending zeros, or connected and sending " +
+             "values the robot ignores. This tells them apart.")]
+    public RobotController robot;
+
+    [Tooltip("Shows when the mixer has taken the stick away, which is a normal " +
+             "state that looks exactly like a dead joystick.")]
+    public BotCommandMixer mixer;
+
     void Start()
     {
         Enable(swingAction);
@@ -70,6 +80,35 @@ public class InputDebugHUD : MonoBehaviour
             // arm quietly ran over the fallback link would otherwise look
             // identical to one where it did not.
             line += "   arm: " + armPublisher.Status;
+        }
+
+        if (robot != null)
+        {
+            line += "\n";
+
+            if (!string.IsNullOrEmpty(robot.PublishBlockedReason))
+            {
+                line += "ROS: " + robot.PublishBlockedReason;
+            }
+            else
+            {
+                // Count and age, not just "connected". A frozen count with a
+                // healthy status is the failure that wasted the demo: the link
+                // was up and nothing was going down it.
+                float age = robot.LastPublishTime >= 0f
+                    ? Time.time - robot.LastPublishTime : -1f;
+
+                line += string.Format(
+                    "ROS: {0}  sent {1}  last {2:F2}/{3:F2}  {4}",
+                    robot.connectionStatus,
+                    robot.PublishCount,
+                    robot.LastPublishedLinear,
+                    robot.LastPublishedAngular,
+                    age < 0f ? "never" : string.Format("{0:F1}s ago", age));
+            }
+
+            if (mixer != null && GameMode.IsAprilTag)
+                line += string.Format("   [{0} drives]", mixer.CurrentPhase);
         }
 
         text.text = line;

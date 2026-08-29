@@ -137,9 +137,31 @@ public class RobotController : MonoBehaviour
         }
     }
 
+    // --- publish telemetry, read by the HUD ------------------------------
+    // Added after a demo where "ROS did not work" could not be distinguished
+    // from "ROS worked and every value was zero" or "publishing never started".
+    // Those three have completely different fixes and looked identical.
+    public int PublishCount { get; private set; }
+    public float LastPublishedLinear { get; private set; }
+    public float LastPublishedAngular { get; private set; }
+    public float LastPublishTime { get; private set; } = -1f;
+
+    /// <summary>Why nothing is being sent, when nothing is being sent.</summary>
+    public string PublishBlockedReason { get; private set; } = "";
+
     void PublishTwist()
     {
-        if (!connectionRequested) return;
+        if (!connectionRequested)
+        {
+            // Set by ROSIPConfig only when CONNECT is pressed. Skip reaches the
+            // HUD without ever setting it, so the app looks fully alive while
+            // publishing nothing at all - which is exactly what a broken link
+            // looks like from the headset.
+            PublishBlockedReason = "not connected - press CONNECT, not SKIP";
+            return;
+        }
+
+        PublishBlockedReason = "";
 
         TwistMsg twist = new TwistMsg();
         twist.linear.x = linearX;
@@ -149,6 +171,11 @@ public class RobotController : MonoBehaviour
         twist.angular.y = 0;
         twist.angular.z = angularZ;
         ros.Publish(topicName, twist);
+
+        PublishCount++;
+        LastPublishedLinear = linearX;
+        LastPublishedAngular = angularZ;
+        LastPublishTime = Time.time;
     }
 
     void OnDestroy()

@@ -4579,9 +4579,9 @@ MonoBehaviour:
   kickAction: {fileID: -9129376883668913906, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   pressThreshold: 0.5
   useMainConnection: 1
-  useRawTcp: 1
-  swingActionName: SWING
-  kickActionName: STOW
+  useRawTcp: 0
+  swingActionName: SWEEP
+  kickActionName: KICK
   abortActions: STOW
   cooldownSeconds: 1.5
   localArm: {fileID: 0}

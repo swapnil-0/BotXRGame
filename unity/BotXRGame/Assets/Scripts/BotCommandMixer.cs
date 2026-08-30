@@ -29,6 +29,16 @@ public class BotCommandMixer : MonoBehaviour
     public ArenaPlacer placer;
     public InputActionReference moveAction;
 
+    [Tooltip("LEFT stick. X spins the robot in place; Y is ignored.\n\n" +
+             "Mecanum separates translation from rotation, so one stick cannot " +
+             "express both - the right stick's X is already strafe. Splitting " +
+             "them across two hands is the standard mecanum layout and means " +
+             "you can aim the arm while the tornado drags you sideways.")]
+    public InputActionReference turnAction;
+
+    [Tooltip("Radians per second at full LEFT stick deflection.")]
+    public float manualTurnRate = 1.2f;
+
     [Tooltip("Also starts the run, as well as the floating START button.\n\n" +
              "ARMED sends zero by design, so START is the only way out of it. " +
              "Gating that solely on a world-space button means anything wrong " +
@@ -126,6 +136,7 @@ public class BotCommandMixer : MonoBehaviour
         if (placer == null) placer = FindAnyObjectByType<ArenaPlacer>();
 
         if (moveAction != null && moveAction.action != null) moveAction.action.Enable();
+        if (turnAction != null && turnAction.action != null) turnAction.action.Enable();
         if (startAction != null && startAction.action != null) startAction.action.Enable();
     }
 
@@ -261,23 +272,53 @@ public class BotCommandMixer : MonoBehaviour
             // the vortex drags the virtual ship, rather than spinning it.
             float lat = Mathf.Clamp(lateral, -driveSpeed * 1.5f, driveSpeed * 1.5f);
 
+            // Yaw is its own axis on the LEFT stick, not something derived from
+            // the pull. The tornado must never rotate the robot on mecanum: if
+            // it did, the heading would drift while you were being dragged and
+            // the arm would end up pointing somewhere you did not choose.
+            float ang = ManualTurn();
+            if (Mathf.Abs(ang) < 1e-4f && !holdHeadingWhenMecanum)
+                ang = -TurnFromLateral(lateral);
+
             // ROS convention: linear.y is positive to the LEFT, and 'right' is
             // built as the robot's right, so the sign flips here.
-            float ang = holdHeadingWhenMecanum ? 0f : TurnFromLateral(lateral);
-
-            robot.SetExternalCommand(lin, -lat, -ang);
+            robot.SetExternalCommand(lin, -lat, ang);
         }
         else
         {
             // Differential: the sideways component cannot be executed, so it
             // becomes turn - which is why a strong side pull reads as being
             // spun rather than shoved.
-            float ang = TurnFromLateral(lateral);
-            robot.SetExternalCommand(lin, -ang);
+            //
+            // The left stick still adds yaw here, so the control layout is the
+            // same in both modes. Added rather than overriding: on a
+            // differential base the tornado's only way to affect you IS the
+            // turn, and letting the stick cancel it would remove the pull.
+            float ang = -TurnFromLateral(lateral) + ManualTurn();
+            robot.SetExternalCommand(lin, ang);
         }
 
         Status = string.Format("running  stick {0:F2}  tornado {1:F2}",
             StickVector.magnitude, TornadoVector.magnitude);
+    }
+
+    /// <summary>Left-stick X, live, for the HUD.</summary>
+    public float TurnStick { get; private set; }
+
+    /// <summary>
+    /// Yaw rate from the left stick, in ROS convention: angular.z is positive
+    /// COUNTER-clockwise, and pushing the stick right should turn right, so the
+    /// sign inverts here.
+    /// </summary>
+    private float ManualTurn()
+    {
+        if (turnAction == null || turnAction.action == null) { TurnStick = 0f; return 0f; }
+
+        float x = turnAction.action.ReadValue<Vector2>().x;
+        if (Mathf.Abs(x) < stickDeadzone) x = 0f;
+
+        TurnStick = x;
+        return -x * manualTurnRate;
     }
 
     private float TurnFromLateral(float lateral)

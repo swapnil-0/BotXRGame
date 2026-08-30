@@ -517,10 +517,13 @@ public static class SessionFlowSetup
     /// Wire Session Flow is safe to re-run because it never overwrites; this
     /// changes controls that already work, so it asks first.
     /// </summary>
-    [MenuItem("Tools/BotXRGame/Bind All Controls To Right Controller", false, 41)]
+    // Renamed from "...To Right Controller": mecanum needs a second stick, so
+    // the left controller now carries yaw and the old name is a lie.
+    [MenuItem("Tools/BotXRGame/Bind All Controls", false, 41)]
     public static void BindRightController()
     {
         var move  = FindActionReference("Bot", "Move");
+        var turn  = FindActionReference("Bot", "Turn");
         var place = FindActionReference("Bot", "Place");
         var swing = FindActionReference("Bot", "Swing");
         var kick  = FindActionReference("Bot", "Kick");
@@ -592,6 +595,7 @@ public static class SessionFlowSetup
         if (linkTest != null)
         {
             Overwrite(linkTest, "moveAction", move);
+            if (turn != null) Overwrite(linkTest, "turnAction", turn);
 
             // Grip cycles the drive topic. The tuner also uses grip, but it is
             // disabled in Link Test, so there is no conflict.
@@ -611,7 +615,18 @@ public static class SessionFlowSetup
             // for any reason the robot cannot be made to move at all. A button
             // press has no position, no material and no raycast to get wrong.
             Overwrite(botMixer, "startAction", swing);
-            done.Add("BotCommandMixer: stick drives, A also starts the run");
+
+            if (turn != null)
+            {
+                Overwrite(botMixer, "turnAction", turn);
+                done.Add("BotCommandMixer: LEFT stick spins the robot");
+            }
+            else
+            {
+                done.Add("NO 'Turn' action - reimport BotXRGameControls.inputactions");
+            }
+
+            done.Add("BotCommandMixer: right stick drives, A also starts the run");
         }
 
         var startButton = Object.FindAnyObjectByType<FloatingStartButton>();

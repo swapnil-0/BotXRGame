@@ -1619,6 +1619,10 @@ MonoBehaviour:
   normalAxis: 0
   toppleAngle: 45
   lostAfterSeconds: 1.5
+  tagOffsetFromCentre: {x: 0, y: 0, z: 0}
+  projectCentreToFloor: 1
+  floorY: 0
+  tagYawOffsetDegrees: 0
 --- !u!1 &202111492
 GameObject:
   m_ObjectHideFlags: 0
@@ -6069,6 +6073,7 @@ MonoBehaviour:
   angularZ: 0
   connectionStatus: Waiting for ROS...
   connectionRequested: 0
+  linearY: 0
 --- !u!4 &1614957524 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3250488527962512246, guid: 12a8f24c67e94c379c1877090b48c017, type: 3}
@@ -6091,9 +6096,13 @@ MonoBehaviour:
   run: {fileID: 861330930}
   placer: {fileID: 861330929}
   moveAction: {fileID: -7185608374540891126, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  startAction: {fileID: -6014808934006281698, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  pressThreshold: 0.5
   arriveRadius: 0.15
   approachSpeed: 0.12
   turnFirstAngle: 35
+  driveKind: 1
+  holdHeadingWhenMecanum: 1
   driveSpeed: 0.18
   turnRate: 1.2
   tornadoInfluence: 1
@@ -7835,7 +7844,7 @@ MonoBehaviour:
   - /controller/cmd_vel
   - /ros_robot_controller/cmd_vel
   - /jetrover/cmd_vel
-  cycleTopicAction: {fileID: 0}
+  cycleTopicAction: {fileID: -4238090234921321020, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   pressThreshold: 0.5
   publishZeroWhenIdle: 1
 --- !u!1 &1984624484

@@ -26,6 +26,17 @@ public class LinkTestMode : MonoBehaviour
              "that could hold it back.")]
     public InputActionReference moveAction;
 
+    [Tooltip("LEFT stick. X is yaw. Present here so all three drive axes - " +
+             "forward, strafe, spin - can be checked against the real base " +
+             "one at a time, in the mode with nothing else in the way.")]
+    public InputActionReference turnAction;
+
+    [Tooltip("Send the right stick's X as strafe (linear.y) instead of yaw.\n\n" +
+             "Turn OFF to fall back to differential behaviour if the base " +
+             "ignores linear.y - which is the quickest way to tell an unwired " +
+             "strafe axis from a wrong sign.")]
+    public bool mecanum = true;
+
     [Header("Drive")]
     [Tooltip("Metres per second at full stick. Low on purpose - this is a " +
              "bench test, often with the robot on a table.")]
@@ -71,6 +82,7 @@ public class LinkTestMode : MonoBehaviour
         if (robot == null) robot = FindAnyObjectByType<RobotController>();
         if (arm == null) arm = FindAnyObjectByType<ArmRosPublisher>();
         if (moveAction != null && moveAction.action != null) moveAction.action.Enable();
+        if (turnAction != null && turnAction.action != null) turnAction.action.Enable();
         if (cycleTopicAction != null && cycleTopicAction.action != null)
             cycleTopicAction.action.Enable();
 
@@ -174,10 +186,28 @@ public class LinkTestMode : MonoBehaviour
         // Straight to the controller's own fields, published at its publishRate.
         // No smoothing, no inertia: this is measuring the link, and anything
         // that shapes the value makes a wrong value harder to recognise.
-        if (stick != Vector2.zero || publishZeroWhenIdle)
-            robot.SetExternalCommand(stick.y * linearSpeed, -stick.x * angularSpeed);
+        Vector2 turn = (turnAction != null && turnAction.action != null)
+            ? turnAction.action.ReadValue<Vector2>() : Vector2.zero;
+        if (Mathf.Abs(turn.x) < deadzone) turn.x = 0f;
 
-        Render(stick);
+        if (stick != Vector2.zero || turn.x != 0f || publishZeroWhenIdle)
+        {
+            if (mecanum)
+            {
+                // linear.y is positive to the LEFT in ROS, so pushing the stick
+                // right must send a negative strafe.
+                robot.SetExternalCommand(stick.y * linearSpeed,
+                                         -stick.x * linearSpeed,
+                                         -turn.x * angularSpeed);
+            }
+            else
+            {
+                robot.SetExternalCommand(stick.y * linearSpeed,
+                                         (-stick.x - turn.x) * angularSpeed);
+            }
+        }
+
+        Render(stick, turn);
     }
 
     private void HandleTopicCycle()
@@ -195,12 +225,12 @@ public class LinkTestMode : MonoBehaviour
         cycleWasPressed = pressed;
     }
 
-    private void Render(Vector2 stick)
+    private void Render(Vector2 stick, Vector2 turn)
     {
         if (display == null) return;
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("LINK TEST - stick drives, A SWEEP, B KICK, grip = topic");
+        sb.AppendLine("LINK TEST - R stick drives, L stick spins, A SWEEP, B KICK, grip = topic");
 
         // Connection first: everything below is meaningless if this is wrong,
         // and it is the single most common cause of "nothing happens".
@@ -220,7 +250,8 @@ public class LinkTestMode : MonoBehaviour
             robot.LastPublishedLinear, robot.LastPublishedAngular,
             age < 0f ? "never" : string.Format("{0:F2}s ago", age));
 
-        sb.AppendFormat("stick {0:F2},{1:F2}\n", stick.x, stick.y);
+        sb.AppendFormat("R stick {0:F2},{1:F2}   L turn {2:F2}   {3}\n",
+            stick.x, stick.y, turn.x, mecanum ? "mecanum" : "differential");
 
         if (arm != null)
         {

@@ -143,6 +143,25 @@ public class ScoreBoard : MonoBehaviour
                 tornado.LastPull, tornadoCount, tp.x, tp.z);
         }
 
+        // AprilTag mode has no ship on purpose - the real robot is the ship.
+        // Returning here made every tag readout below unreachable in the one
+        // mode they exist for, so the offset could not be tuned by eye.
+        if (GameMode.IsAprilTag)
+        {
+            var btn = FindAnyObjectByType<FloatingStartButton>(FindObjectsInactive.Include);
+            sb.AppendFormat("START: {0}\n", btn == null ? "no button in scene" : btn.Diagnosis);
+
+            var tt = FindAnyObjectByType<TagCupTracker>(FindObjectsInactive.Include);
+            if (tt != null && tt.BotTracked && tt.BotTag != null)
+            {
+                Vector3 tg = tt.BotTag.position;
+                Vector3 ct = tt.BotCentre;
+                sb.AppendFormat("tag {0:F2},{1:F2}   centre {2:F2},{3:F2}\n",
+                    tg.x, tg.z, ct.x, ct.z);
+            }
+            return sb.ToString();
+        }
+
         if (ship == null)
         {
             sb.Append("SHIP NOT FOUND");

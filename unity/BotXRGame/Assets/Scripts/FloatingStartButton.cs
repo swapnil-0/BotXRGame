@@ -82,8 +82,25 @@ public class FloatingStartButton : MonoBehaviour
         Material mat = buttonMaterial;
         if (mat == null)
         {
-            var sh = Shader.Find("Universal Render Pipeline/Unlit");
+            // Shader.Find in a BUILT player only sees shaders the build kept.
+            // A stripped shader gives a null material, the cube falls back to
+            // Unity's default - which URP does not render - and the button is
+            // silently invisible while every other check says it is fine.
+            // So try several, and borrow a working one off the scene last.
+            Shader sh = Shader.Find("Universal Render Pipeline/Unlit")
+                     ?? Shader.Find("Universal Render Pipeline/Lit")
+                     ?? Shader.Find("Sprites/Default")
+                     ?? Shader.Find("Unlit/Color");
+
+            if (sh == null)
+            {
+                var donor = FindAnyObjectByType<MeshRenderer>();
+                if (donor != null && donor.sharedMaterial != null)
+                    sh = donor.sharedMaterial.shader;
+            }
+
             if (sh != null) mat = new Material(sh);
+            else Debug.LogError("[Start] no usable shader - button will be invisible.");
         }
         faceMat = mat != null ? new Material(mat) : null;
         if (faceRenderer != null && faceMat != null)
@@ -106,8 +123,32 @@ public class FloatingStartButton : MonoBehaviour
         if (rt != null) rt.sizeDelta = new Vector2(size.x, size.y);
     }
 
+    /// <summary>Why the button is not on screen, for the HUD.</summary>
+    public string Diagnosis { get; private set; } = "not started";
+
     void Update()
     {
+        // Re-resolve, not just once in Start(). FindAnyObjectByType skips
+        // INACTIVE objects, and the mixer rides the ship root, which AprilTag
+        // mode suppresses. One frame of the ship being inactive at load leaves
+        // this null forever, and a null mixer here is indistinguishable from
+        // "not time to start yet" - the button simply never appears and the
+        // session is stuck in ARMED with no way out.
+        if (mixer == null) mixer = FindAnyObjectByType<BotCommandMixer>(FindObjectsInactive.Include);
+        if (run == null) run = FindAnyObjectByType<ArenaRun>(FindObjectsInactive.Include);
+
+        if (rayOrigin == null)
+        {
+            var p = FindAnyObjectByType<ArenaPlacer>(FindObjectsInactive.Include);
+            if (p != null) rayOrigin = p.rayOrigin;
+        }
+
+        if (mixer == null) Diagnosis = "no mixer found";
+        else if (!mixer.AwaitingStart) Diagnosis = "phase " + mixer.CurrentPhase;
+        else if (run == null) Diagnosis = "no ArenaRun - cannot place";
+        else if (faceMat == null) Diagnosis = "VISIBLE but unlit (no URP shader)";
+        else Diagnosis = "VISIBLE at " + transform.position.ToString("F2");
+
         bool shouldShow = mixer != null && mixer.AwaitingStart;
         SetVisible(shouldShow);
         if (!shouldShow) return;
@@ -134,10 +175,26 @@ public class FloatingStartButton : MonoBehaviour
 
     private void PlaceSelf()
     {
-        if (run == null) return;
+        Vector3 p;
 
-        Vector3 p = run.StartPoint;
-        p.y += height;
+        if (run != null)
+        {
+            p = run.StartPoint;
+            p.y += height;
+        }
+        else if (Camera.main != null)
+        {
+            // Rather than return and leave the button parked at the world
+            // origin - which is usually behind or under the player, and looks
+            // exactly like not existing - put it where it must be seen.
+            Vector3 fwd = Camera.main.transform.forward;
+            fwd.y = 0f;
+            if (fwd.sqrMagnitude < 1e-6f) fwd = Vector3.forward;
+            p = Camera.main.transform.position + fwd.normalized * 0.8f;
+            p.y -= 0.2f;
+        }
+        else return;
+
         transform.position = p;
 
         // Face the player, upright. A button that matches head pitch swings

@@ -29,6 +29,18 @@ public class BotCommandMixer : MonoBehaviour
     public ArenaPlacer placer;
     public InputActionReference moveAction;
 
+    [Tooltip("Also starts the run, as well as the floating START button.\n\n" +
+             "ARMED sends zero by design, so START is the only way out of it. " +
+             "Gating that solely on a world-space button means anything wrong " +
+             "with the button - unwired, mispositioned, unlit shader - traps " +
+             "the session with a robot that will not move. A button press " +
+             "cannot be mispositioned.\n\n" +
+             "A is free in ARMED: the arm is only useful once running.")]
+    public InputActionReference startAction;
+
+    [Range(0.1f, 0.9f)] public float pressThreshold = 0.5f;
+    private bool startWasPressed;
+
     [Header("Approach")]
     [Tooltip("Metres from the start point that counts as arrived.")]
     public float arriveRadius = 0.15f;
@@ -114,6 +126,16 @@ public class BotCommandMixer : MonoBehaviour
         if (placer == null) placer = FindAnyObjectByType<ArenaPlacer>();
 
         if (moveAction != null && moveAction.action != null) moveAction.action.Enable();
+        if (startAction != null && startAction.action != null) startAction.action.Enable();
+    }
+
+    private void ReadStartButton()
+    {
+        if (startAction == null || startAction.action == null) return;
+
+        bool pressed = startAction.action.ReadValue<float>() > pressThreshold;
+        if (pressed && !startWasPressed && AwaitingStart) PressStart();
+        startWasPressed = pressed;
     }
 
     /// <summary>Called by the floating START button.</summary>
@@ -131,6 +153,11 @@ public class BotCommandMixer : MonoBehaviour
 
     void Update()
     {
+        // Polled before every early return below, so A still works in the
+        // states that bail out - those are exactly the states you need a way
+        // out of.
+        ReadStartButton();
+
         if (robot == null || tagTracker == null) return;
 
         if (placer == null || !placer.IsPlaced)

@@ -605,7 +605,13 @@ public static class SessionFlowSetup
         if (botMixer != null)
         {
             Overwrite(botMixer, "moveAction", move);
-            done.Add("BotCommandMixer.moveAction (stick drives the real robot)");
+
+            // A also starts the run. The floating button is the nicer gesture,
+            // but ARMED sends zero by design, so if the button fails to render
+            // for any reason the robot cannot be made to move at all. A button
+            // press has no position, no material and no raycast to get wrong.
+            Overwrite(botMixer, "startAction", swing);
+            done.Add("BotCommandMixer: stick drives, A also starts the run");
         }
 
         var startButton = Object.FindAnyObjectByType<FloatingStartButton>();

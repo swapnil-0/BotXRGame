@@ -27,6 +27,10 @@ public class ModeSelectMenu : MonoBehaviour
     public Button virtualBotButton;
     public Button aprilTagButton;
 
+    [Tooltip("Bare ROS link test - no arena, no tags, stick straight to the " +
+             "robot. First thing to try when the robot does not respond.")]
+    public Button linkTestButton;
+
     [Header("Optional labels")]
     public TMPro.TextMeshProUGUI titleText;
     public TMPro.TextMeshProUGUI helpText;
@@ -82,7 +86,8 @@ public class ModeSelectMenu : MonoBehaviour
                   "B  AprilTag - drive the real robot"
                 : "Point and pull the trigger to choose\n" +
                   "Virtual Bot - fly the ship, no robot needed\n" +
-                  "AprilTag - drive the real robot";
+                  "AprilTag - drive the real robot\n" +
+                  "Link Test - stick straight to the robot, nothing else";
         }
 
         if (virtualBotButton != null)
@@ -90,6 +95,9 @@ public class ModeSelectMenu : MonoBehaviour
 
         if (aprilTagButton != null)
             aprilTagButton.onClick.AddListener(() => Choose(ShipSource.AprilTag));
+
+        if (linkTestButton != null)
+            linkTestButton.onClick.AddListener(() => Choose(ShipSource.LinkTest));
 
         if (virtualBotButton == null && aprilTagButton == null)
         {

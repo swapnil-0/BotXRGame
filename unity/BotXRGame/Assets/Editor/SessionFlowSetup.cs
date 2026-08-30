@@ -80,6 +80,10 @@ public static class SessionFlowSetup
                                    "AprilTag (real bot)",
                                    new Vector2(0f, -120f),
                                    new Color(0.18f, 0.32f, 0.52f));
+        Button linkBtn = MakeButton(modePanel.transform, "LinkTestButton",
+                                    "Link Test (ROS only)",
+                                    new Vector2(0f, -230f),
+                                    new Color(0.5f, 0.35f, 0.15f));
 
         done.Add("ModePanel with two buttons");
 
@@ -91,6 +95,7 @@ public static class SessionFlowSetup
             { "modePanel",        modePanel },
             { "virtualBotButton", virtualBtn },
             { "aprilTagButton",   tagBtn },
+            { "linkTestButton",   linkBtn },
             { "titleText",        title },
             { "helpText",         help },
             { "ipConfig",         ipConfig },
@@ -178,6 +183,31 @@ public static class SessionFlowSetup
             trt.anchorMax = new Vector2(1f, 1f);
             trt.offsetMin = new Vector2(10f, 45f);
             trt.offsetMax = new Vector2(-10f, -10f);
+
+            // Link test readout: its own text, full panel, so the diagnostics
+            // are large and unambiguous rather than squeezed beside game state.
+            var linkGo = FindOrCreateUiChild(hudPanel.transform, "LinkTestText");
+            var linkText = GetOrAdd<TMPro.TextMeshProUGUI>(linkGo);
+            linkText.fontSize = 20;
+            linkText.color = new Color(0.85f, 0.95f, 1f);
+            linkText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+            linkText.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            linkText.text = "";
+
+            var lrt = linkGo.GetComponent<RectTransform>();
+            lrt.anchorMin = new Vector2(0f, 0f);
+            lrt.anchorMax = new Vector2(1f, 1f);
+            lrt.offsetMin = new Vector2(10f, 45f);
+            lrt.offsetMax = new Vector2(-10f, -10f);
+
+            var linkMode = GetOrAdd<LinkTestMode>(hudPanel);
+            var linkWires = new Dictionary<string, Object> { { "display", linkText } };
+            var rcLink = Object.FindAnyObjectByType<RobotController>();
+            if (rcLink != null) linkWires["robot"] = rcLink;
+            var armLink = Object.FindAnyObjectByType<ArmRosPublisher>();
+            if (armLink != null) linkWires["arm"] = armLink;
+            Wire(linkMode, linkWires);
+            done.Add("LinkTestMode on " + hudPanel.name + " (bare ROS link mode)");
 
             var tuner = GetOrAdd<TornadoTuner>(hudPanel);
             var tunerWires = new Dictionary<string, Object> { { "text", tuneText } };
@@ -526,6 +556,13 @@ public static class SessionFlowSetup
             Overwrite(inputHud, "placeAction", place);
             Overwrite(inputHud, "moveAction", move);
             done.Add("InputDebugHUD: A/B/trigger/stick");
+        }
+
+        var linkTest = Object.FindAnyObjectByType<LinkTestMode>();
+        if (linkTest != null)
+        {
+            Overwrite(linkTest, "moveAction", move);
+            done.Add("LinkTestMode.moveAction (stick)");
         }
 
         var botMixer = Object.FindAnyObjectByType<BotCommandMixer>();

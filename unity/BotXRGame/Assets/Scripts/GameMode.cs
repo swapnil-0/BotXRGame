@@ -17,6 +17,18 @@ public enum ShipSource
     /// over ROS rather than moving the ship directly.
     /// </summary>
     AprilTag,
+
+    /// <summary>
+    /// Nothing but the ROS link: connect, and the stick drives the robot.
+    ///
+    /// No arena, no placement, no tags, no tornado. Exists because when the
+    /// link failed at the demo there was no way to tell whether the fault was
+    /// in ROS or in one of the six things layered on top of it - the joystick
+    /// only reaches /cmd_vel after a floor is found, an arena is placed, a tag
+    /// resolves and a phase advances. Any of those failing looks exactly like
+    /// a dead link.
+    /// </summary>
+    LinkTest,
 }
 
 /// <summary>
@@ -45,6 +57,11 @@ public static class GameMode
 
     /// <summary>Convenience for the many places that only care about one branch.</summary>
     public static bool IsAprilTag => Source == ShipSource.AprilTag;
+
+    public static bool IsLinkTest => Source == ShipSource.LinkTest;
+
+    /// <summary>True when the arena, tags and tornado should all stand down.</summary>
+    public static bool IsBareLink => Source == ShipSource.LinkTest;
 
     /// <summary>
     /// Reset for a fresh session. Called when the flow returns to the menu, so

@@ -28,6 +28,81 @@ public class ROSIPConfig : MonoBehaviour
 
     private ROSConnection ros;
 
+    [Header("Recent addresses")]
+    [Tooltip("Button that cycles through recently used IPs into the field.\n\n" +
+             "A cycle button rather than a dropdown: typing an IP on an XR " +
+             "keyboard is slow and error-prone, and a wrong digit produces the " +
+             "same silent failure as an unreachable robot - which has already " +
+             "cost a test session.")]
+    public UnityEngine.UI.Button recentButton;
+
+    [Tooltip("Optional label showing which recent entry is selected.")]
+    public TextMeshProUGUI recentLabel;
+
+    [Tooltip("How many addresses to remember.")]
+    public int recentCount = 5;
+
+    private const string PREF_RECENT = "ROS_IP_RECENT";
+    private System.Collections.Generic.List<string> recent =
+        new System.Collections.Generic.List<string>();
+    private int recentIndex = -1;
+
+    /// <summary>
+    /// Most-recent-first list of addresses used successfully.
+    /// Stored newline separated in one pref, which is enough for five entries
+    /// and avoids inventing a key per slot.
+    /// </summary>
+    [Tooltip("Addresses available before anything has been connected to.\n\n" +
+             "Seeded with the two machines actually in use, so the first run " +
+             "after an install does not require typing an IP on an XR keyboard " +
+             "to find out whether the link works.")]
+    public string[] seedAddresses = { "192.168.1.200", "192.168.2.216" };
+
+    private void LoadRecent()
+    {
+        recent.Clear();
+        string raw = PlayerPrefs.GetString(PREF_RECENT, "");
+        foreach (var s in raw.Split('\n'))
+            if (!string.IsNullOrEmpty(s.Trim())) recent.Add(s.Trim());
+
+        // Append seeds that are not already remembered, after the real history
+        // so a genuinely used address always comes first.
+        if (seedAddresses != null)
+            foreach (var s in seedAddresses)
+                if (!string.IsNullOrEmpty(s) && !recent.Contains(s)) recent.Add(s);
+    }
+
+    private void RememberIP(string ip)
+    {
+        if (string.IsNullOrEmpty(ip)) return;
+
+        recent.Remove(ip);            // moving to the front, not duplicating
+        recent.Insert(0, ip);
+
+        while (recent.Count > Mathf.Max(1, recentCount))
+            recent.RemoveAt(recent.Count - 1);
+
+        PlayerPrefs.SetString(PREF_RECENT, string.Join("\n", recent));
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>Wire to the recent button. Steps through remembered addresses.</summary>
+    public void CycleRecent()
+    {
+        if (recent.Count == 0)
+        {
+            if (recentLabel != null) recentLabel.text = "no recent addresses";
+            return;
+        }
+
+        recentIndex = (recentIndex + 1) % recent.Count;
+        if (ipInputField != null) ipInputField.text = recent[recentIndex];
+
+        if (recentLabel != null)
+            recentLabel.text = string.Format("recent {0}/{1}",
+                recentIndex + 1, recent.Count);
+    }
+
     private const string PREF_IP = "ROS_IP";
     private const string PREF_PORT = "ROS_PORT";
     private const string DEFAULT_IP = "192.168.1.100";
@@ -82,6 +157,16 @@ public class ROSIPConfig : MonoBehaviour
             ipInputPanel.SetActive(true);
             hudPanel.SetActive(false);
         }
+
+        LoadRecent();
+
+        if (recentButton != null)
+            recentButton.onClick.AddListener(CycleRecent);
+
+        if (recentLabel != null)
+            recentLabel.text = recent.Count > 0
+                ? string.Format("{0} recent - tap to cycle", recent.Count)
+                : "no recent addresses";
 
         // Restore last used IP
         ipInputField.text = PlayerPrefs.GetString(PREF_IP, DEFAULT_IP);
@@ -160,6 +245,11 @@ public class ROSIPConfig : MonoBehaviour
 
         if (robotController != null)
             robotController.connectionRequested = true;
+
+        // Remembered on ATTEMPT, not on success. A typo would otherwise never
+        // be saved, but neither would a correct address whose robot happened to
+        // be off - and that is the address you most want back next time.
+        RememberIP(ip);
 
         ipStatusText.text = "Connecting to " + ip + ":" + port + "...";
         ipStatusText.color = Color.yellow;

@@ -87,6 +87,36 @@ public static class SessionFlowSetup
 
         done.Add("ModePanel with two buttons");
 
+        // ------------------------------------------- recent-address button
+        // Typing an IP on an XR keyboard is slow, and one wrong digit fails
+        // identically to an unreachable robot.
+        var recentGo = FindOrCreateUiChild(ipPanel.transform, "RecentIPButton");
+        var recentImg = GetOrAdd<Image>(recentGo);
+        recentImg.color = new Color(0.22f, 0.3f, 0.42f);
+        var recentBtn = GetOrAdd<Button>(recentGo);
+        recentBtn.targetGraphic = recentImg;
+
+        var recentRt = recentGo.GetComponent<RectTransform>();
+        recentRt.anchorMin = recentRt.anchorMax = new Vector2(0.5f, 0.5f);
+        recentRt.pivot = new Vector2(0.5f, 0.5f);
+        recentRt.anchoredPosition = new Vector2(0f, -190f);
+        recentRt.sizeDelta = new Vector2(360f, 60f);
+
+        var recentTxt = MakeText(recentGo.transform, "Label", 26,
+                                 TMPro.TextAlignmentOptions.Center,
+                                 Vector2.zero, new Vector2(340f, 50f));
+        recentTxt.text = "Recent IPs";
+        Stretch(recentTxt.GetComponent<RectTransform>());
+
+        // recentLabel left unassigned on purpose: the only spare text on that
+        // panel is ipStatusText, and writing the recent index into it would
+        // overwrite the connection errors it exists to show.
+        Wire(ipConfig, new Dictionary<string, Object>
+        {
+            { "recentButton", recentBtn },
+        });
+        done.Add("Recent IP button on the connect screen");
+
         // --------------------------------------------------- ModeSelectMenu
         var menuHost = ipConfig.gameObject;
         var menu = GetOrAdd<ModeSelectMenu>(menuHost);

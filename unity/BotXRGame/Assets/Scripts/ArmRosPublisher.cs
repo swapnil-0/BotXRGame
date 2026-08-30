@@ -120,6 +120,8 @@ public class ArmRosPublisher : MonoBehaviour
 
     private ROSConnection mainRos;
     private bool usingFallback;
+    private RobotController driveRobot;
+    private string openedIP = "";
 
     /// <summary>Which link the arm is actually publishing on, for the HUD.</summary>
     public string LinkDescription { get; private set; } = "not connected";
@@ -134,8 +136,40 @@ public class ArmRosPublisher : MonoBehaviour
         mainRos = ROSConnection.GetOrCreateInstance();
         if (mainRos == null) return;
 
-        string ip = !string.IsNullOrEmpty(armIP) ? armIP : mainRos.RosIPAddress;
+        // Wait for the player to actually press Connect. Registering earlier
+        // copied the ROSConnection prefab's DEFAULT address, so the arm link
+        // opened against 192.168.1.100 while the drive link used the address
+        // just typed in - two links to two different machines, and only one of
+        // them a real robot.
+        if (driveRobot == null) driveRobot = FindAnyObjectByType<RobotController>();
+        if (driveRobot != null && !driveRobot.connectionRequested)
+        {
+            Status = "waiting for CONNECT";
+            return;
+        }
+
+        // Prefer the address the connect screen wrote onto RobotController.
+        // That is the one the user typed; ROSConnection.RosIPAddress is only
+        // updated when it connects, so reading it can lag by a frame or a
+        // whole session.
+        string ip = !string.IsNullOrEmpty(armIP)
+            ? armIP
+            : (driveRobot != null && !string.IsNullOrEmpty(driveRobot.rosIP)
+                ? driveRobot.rosIP
+                : mainRos.RosIPAddress);
+
         if (string.IsNullOrEmpty(ip)) return;      // no address yet; retry next frame
+
+        // Rebuild if the address changed since the arm link was opened - the
+        // player can reconnect to a different robot without restarting.
+        if (ros != null && !usingFallback && openedIP != ip)
+        {
+            Debug.LogFormat("[Arm] address changed {0} -> {1}, reopening arm link",
+                openedIP, ip);
+            if (ros != mainRos && ros != null) Destroy(ros.gameObject);
+            ros = null;
+            registered = false;
+        }
 
         if (ros == null) ros = CreateArmConnection(ip);
 
@@ -186,6 +220,7 @@ public class ArmRosPublisher : MonoBehaviour
             go.SetActive(true);
             conn.Connect(ip, armPort);
 
+            openedIP = ip;
             Debug.LogFormat("[Arm] opened arm link to {0}:{1}", ip, armPort);
             return conn;
         }

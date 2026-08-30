@@ -161,6 +161,21 @@ public class ArenaPlacer : MonoBehaviour
 
     void Start()
     {
+        // Link Test needs no arena, and must not have the ship deactivated:
+        // RobotController lives on a CHILD of the ship, so switching the ship
+        // off switches off the thing that publishes /cmd_vel. That is exactly
+        // what happened - the link test reported 'sent 0' and a connection
+        // status still at its initial value, because its Update never ran.
+        //
+        // Guarded here rather than in LinkTestMode because Start order is not
+        // guaranteed: LinkTestMode disabling this component afterwards is too
+        // late if the ship has already been switched off.
+        if (GameMode.IsLinkTest)
+        {
+            enabled = false;
+            return;
+        }
+
         // The ship only appears once the area exists - during area selection
         // the player should see nothing but the rectangle.
         if (ship != null) ship.gameObject.SetActive(false);

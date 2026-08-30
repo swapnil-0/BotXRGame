@@ -53,6 +53,7 @@ public class LinkTestMode : MonoBehaviour
         if (moveAction != null && moveAction.action != null) moveAction.action.Enable();
 
         StandDownEverythingElse();
+        HideOtherHudText();
 
         Debug.Log("[LinkTest] bare ROS link mode - arena, tags and tornado disabled");
     }
@@ -66,7 +67,24 @@ public class LinkTestMode : MonoBehaviour
     /// </summary>
     private void StandDownEverythingElse()
     {
-        Disable(FindAnyObjectByType<ArenaPlacer>());
+        // Re-activate the ship hierarchy first. RobotController sits on a child
+        // of it, so anything that deactivated the ship also silenced the
+        // publisher - and a publisher that never runs looks exactly like a
+        // network fault.
+        var placer = FindAnyObjectByType<ArenaPlacer>(FindObjectsInactive.Include);
+        if (placer != null && placer.ship != null && !placer.ship.gameObject.activeSelf)
+        {
+            placer.ship.gameObject.SetActive(true);
+            Debug.Log("[LinkTest] re-activated ship root so RobotController can publish");
+        }
+
+        if (robot != null && !robot.gameObject.activeInHierarchy)
+        {
+            Debug.LogWarning("[LinkTest] RobotController is on an inactive object - " +
+                             "nothing will publish. Check the ship hierarchy.");
+        }
+
+        Disable(placer);
         Disable(FindAnyObjectByType<ArenaRun>());
         Disable(FindAnyObjectByType<BotCommandMixer>());
         Disable(FindAnyObjectByType<ShipTagFollower>());
@@ -88,6 +106,29 @@ public class LinkTestMode : MonoBehaviour
     private static void Disable(MonoBehaviour c)
     {
         if (c != null) c.enabled = false;
+    }
+
+    /// <summary>
+    /// Blank the HUD's other lines.
+    ///
+    /// The arena placer's size prompt was still written into the HUD text and
+    /// drew straight through this readout, so the two overlapped into
+    /// unreadable soup - and the placer is disabled here, meaning that prompt
+    /// was stale text about a step that will never happen.
+    /// </summary>
+    private void HideOtherHudText()
+    {
+        if (display == null) return;
+
+        var parent = display.transform.parent != null
+            ? display.transform.parent : display.transform;
+
+        foreach (var t in parent.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true))
+        {
+            if (t == display) continue;
+            t.text = "";
+            t.enabled = false;
+        }
     }
 
     void Update()

@@ -56,22 +56,32 @@ public class ArmRosPublisher : MonoBehaviour
     [Range(0.1f, 0.9f)]
     public float pressThreshold = 0.5f;
 
+    [Header("Transport")]
+    [Tooltip("Send plain newline-terminated text over a raw TCP socket instead " +
+             "of publishing a ROS topic.\n\n" +
+             "ON, because that is what the robot's arm node actually is: it " +
+             "opens its own socket on 10001 and reads lines like 'SWEEP'. It is " +
+             "not a ros_tcp_endpoint, so ROS-TCP frames could never be " +
+             "understood no matter what address or topic we used.")]
+    public bool useRawTcp = true;
+
     [Header("ROS action names")]
-    [Tooltip("Payload action for the A button.")]
-    public string swingActionName = "SWING";
+    [Tooltip("Payload action for the A button.\n\n" +
+             "SWEEP, not SWING: the robot node's command vocabulary is SWEEP, " +
+             "KICK and SET_HOME, and anything else is logged as 'Unknown action " +
+             "command' and dropped.")]
+    public string swingActionName = "SWEEP";
 
-    [Tooltip("Payload action for the B button.\n\n" +
-             "STOW, not KICK: the robot side implements SWING and STOW, and " +
-             "inventing a command it does not understand only produces warnings " +
-             "in its log. Track what exists rather than what we wish existed.\n\n" +
-             "STOW aborts a swing in progress and returns the arm to stowed, " +
-             "which is a genuinely useful second button - it is the recovery " +
-             "control when the arm is mid-stroke and about to hit something.")]
-    public string kickActionName = "STOW";
+    [Tooltip("Payload action for the B button. KICK is the node's second " +
+             "gesture: Home -> Extend -> Home.")]
+    public string kickActionName = "KICK";
 
-    [Tooltip("Actions treated as an abort: no cooldown, no local swing " +
-             "animation. Comma separated.")]
-    public string abortActions = "STOW";
+    [Tooltip("Actions treated as an abort: no cooldown, no local animation.\n\n" +
+             "Empty now. The node has no abort - it LOCKS OUT every command " +
+             "while a gesture is playing and logs the rejection, so there is " +
+             "nothing that can interrupt a stroke and pretending otherwise " +
+             "would just send commands that are discarded.")]
+    public string abortActions = "";
 
     [Tooltip("Minimum seconds between swings. The robot arm takes over a second " +
              "to complete its arc, so a button held down would otherwise queue " +
@@ -122,6 +132,7 @@ public class ArmRosPublisher : MonoBehaviour
     private bool usingFallback;
     private RobotController driveRobot;
     private string openedIP = "";
+    private RawTcpCommandClient tcp;
 
     /// <summary>Which link the arm is actually publishing on, for the HUD.</summary>
     public string LinkDescription { get; private set; } = "not connected";
@@ -169,6 +180,23 @@ public class ArmRosPublisher : MonoBehaviour
             if (ros != mainRos && ros != null) Destroy(ros.gameObject);
             ros = null;
             registered = false;
+        }
+
+        // Raw TCP path: no ROS publisher at all, just a socket.
+        if (useRawTcp)
+        {
+            if (tcp == null) tcp = new RawTcpCommandClient();
+
+            if (openedIP != ip)
+            {
+                tcp.Connect(ip, armPort);
+                openedIP = ip;
+            }
+
+            registered = true;
+            LinkDescription = string.Format("{0}:{1} raw TCP", ip, armPort);
+            Status = tcp.Status;
+            return;
         }
 
         if (ros == null) ros = CreateArmConnection(ip);
@@ -232,9 +260,22 @@ public class ArmRosPublisher : MonoBehaviour
         }
     }
 
+    void OnDestroy()
+    {
+        // Background thread must be stopped explicitly, or it survives play
+        // mode and keeps a socket open against the robot.
+        tcp?.Disconnect();
+    }
+
     void Update()
     {
         if (!registered) TryRegister();
+
+        // Keep the HUD honest about the socket's live state - the raw client
+        // reconnects on its own, so a status captured at registration would go
+        // stale the moment the robot was power-cycled.
+        if (useRawTcp && tcp != null && registered)
+            Status = string.Format("{0}  sent {1}", tcp.Status, tcp.SentCount);
 
         bool swing = Pressed(swingAction, pressThreshold);
         bool kick = Pressed(kickAction, pressThreshold);
@@ -294,6 +335,29 @@ public class ArmRosPublisher : MonoBehaviour
         {
             Status = "local only (Virtual Bot)";
             lastSendTime = Time.time;
+            return;
+        }
+
+        if (useRawTcp)
+        {
+            if (tcp == null || !tcp.Connected)
+            {
+                Status = "TCP not connected: " + (tcp != null ? tcp.Status : "no client");
+                Debug.LogWarningFormat("[Arm] {0} pressed but arm socket is not connected",
+                    actionName);
+                return;
+            }
+
+            // Bare command word, newline added by the client. No JSON: his
+            // reader uppercases the line and matches it directly.
+            tcp.Send(actionName);
+
+            SwingsSent++;
+            LastCommand = actionName;
+            lastSendTime = Time.time;
+            Status = string.Format("sent #{0} {1}", SwingsSent, actionName);
+
+            Debug.LogFormat("[Arm] -> {0} '{1}'", LinkDescription, actionName);
             return;
         }
 

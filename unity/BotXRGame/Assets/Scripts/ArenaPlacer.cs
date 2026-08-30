@@ -435,6 +435,13 @@ public class ArenaPlacer : MonoBehaviour
         var scoreBoard = FindAnyObjectByType<ScoreBoard>();
         if (scoreBoard != null) scoreBoard.WatchShip(playerShip);
 
+        // Hand the tag tracker the floor height. Without it the derived bot
+        // centre projects to y = 0, which is only correct if the arena happens
+        // to sit at the world origin's height - and the marker would then float
+        // or sink relative to the actual robot.
+        var cupTrackerForFloor = FindAnyObjectByType<TagCupTracker>();
+        if (cupTrackerForFloor != null) cupTrackerForFloor.floorY = arenaFloorY;
+
         // Draws where the game thinks the ship is, so the next screenshot
         // answers the question outright instead of inviting another theory.
         if (showCenterMarker) CenterMarker.Create(playerShip, cupMaterial);

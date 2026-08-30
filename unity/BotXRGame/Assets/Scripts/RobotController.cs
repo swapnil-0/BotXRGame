@@ -83,7 +83,10 @@ public class RobotController : MonoBehaviour
 
     // --- external command override ---------------------------------------
     private bool hasExternalCommand;
-    private float externalLinear, externalAngular;
+    private float externalLinear, externalLateral, externalAngular;
+
+    /// <summary>Strafe component, m/s, left positive. Mecanum only.</summary>
+    [HideInInspector] public float linearY;
 
     /// <summary>True while something other than the stick is driving.</summary>
     public bool IsExternallyDriven => hasExternalCommand;
@@ -94,8 +97,15 @@ public class RobotController : MonoBehaviour
     /// </summary>
     public void SetExternalCommand(float linear, float angular)
     {
+        SetExternalCommand(linear, 0f, angular);
+    }
+
+    /// <summary>Mecanum form: forward, strafe (left positive), yaw rate.</summary>
+    public void SetExternalCommand(float linear, float lateral, float angular)
+    {
         hasExternalCommand = true;
         externalLinear = linear;
+        externalLateral = lateral;
         externalAngular = angular;
     }
 
@@ -133,7 +143,12 @@ public class RobotController : MonoBehaviour
         if (hasExternalCommand)
         {
             linearX = externalLinear;
+            linearY = externalLateral;
             angularZ = externalAngular;
+        }
+        else
+        {
+            linearY = 0f;
         }
 
         // Move spaceship in simulation
@@ -187,7 +202,10 @@ public class RobotController : MonoBehaviour
 
         TwistMsg twist = new TwistMsg();
         twist.linear.x = linearX;
-        twist.linear.y = 0;
+        // linear.y is strafe. Zero on a differential base, meaningful on
+        // mecanum - and on mecanum it is what lets the tornado actually shove
+        // the robot sideways instead of only spinning it.
+        twist.linear.y = linearY;
         twist.linear.z = 0;
         twist.angular.x = 0;
         twist.angular.y = 0;

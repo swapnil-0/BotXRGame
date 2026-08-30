@@ -41,6 +41,22 @@ public class BotCommandMixer : MonoBehaviour
     [Range(10f, 120f)]
     public float turnFirstAngle = 35f;
 
+    public enum DriveKind { Differential, Mecanum }
+
+    [Header("Drive")]
+    [Tooltip("Mecanum can strafe, so the tornado's sideways pull is executed as " +
+             "lateral motion instead of being converted into spin.\n\n" +
+             "That is a much closer match to the virtual ship, which is pushed " +
+             "bodily by the vortex. On a differential base the same pull can " +
+             "only become a turn, which feels like being spun rather than " +
+             "dragged.")]
+    public DriveKind driveKind = DriveKind.Mecanum;
+
+    [Tooltip("Keep the robot's heading fixed while translating. With mecanum " +
+             "the stick moves the base without turning it, so the arm keeps " +
+             "pointing the same way while the tornado drags it sideways.")]
+    public bool holdHeadingWhenMecanum = true;
+
     [Header("Play")]
     [Tooltip("Metres per second at full stick.")]
     public float driveSpeed = 0.18f;
@@ -206,20 +222,40 @@ public class BotCommandMixer : MonoBehaviour
 
         CommandVector = StickVector + TornadoVector;
 
-        // Project the desired world velocity onto what a differential drive can
-        // actually do: forward along its own heading, plus a turn toward the
-        // rest. The sideways component cannot be executed, so it becomes turn -
-        // which is why a strong sideways pull reads as being spun.
         float forward = Vector3.Dot(CommandVector, facing);
         float lateral = Vector3.Dot(CommandVector, right);
 
         float lin = Mathf.Clamp(forward, -driveSpeed * 1.5f, driveSpeed * 1.5f);
-        float ang = Mathf.Clamp(lateral / Mathf.Max(driveSpeed, 1e-3f), -1.5f, 1.5f) * turnRate;
 
-        robot.SetExternalCommand(lin, -ang);
+        if (driveKind == DriveKind.Mecanum)
+        {
+            // Both components executed as motion. This is the whole advantage
+            // of mecanum here: a sideways tornado pull DRAGS the robot, the way
+            // the vortex drags the virtual ship, rather than spinning it.
+            float lat = Mathf.Clamp(lateral, -driveSpeed * 1.5f, driveSpeed * 1.5f);
+
+            // ROS convention: linear.y is positive to the LEFT, and 'right' is
+            // built as the robot's right, so the sign flips here.
+            float ang = holdHeadingWhenMecanum ? 0f : TurnFromLateral(lateral);
+
+            robot.SetExternalCommand(lin, -lat, -ang);
+        }
+        else
+        {
+            // Differential: the sideways component cannot be executed, so it
+            // becomes turn - which is why a strong side pull reads as being
+            // spun rather than shoved.
+            float ang = TurnFromLateral(lateral);
+            robot.SetExternalCommand(lin, -ang);
+        }
 
         Status = string.Format("running  stick {0:F2}  tornado {1:F2}",
             StickVector.magnitude, TornadoVector.magnitude);
+    }
+
+    private float TurnFromLateral(float lateral)
+    {
+        return Mathf.Clamp(lateral / Mathf.Max(driveSpeed, 1e-3f), -1.5f, 1.5f) * turnRate;
     }
 
     private void SetIdle(string why)

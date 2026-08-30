@@ -76,6 +76,17 @@ public class TagCupTracker : MonoBehaviour
              "orbit while standing still.")]
     public Vector3 tagOffsetFromCentre = Vector3.zero;
 
+    [Tooltip("Project the derived centre down to the floor.\n\n" +
+             "ON when the tag rides a pole: the tag is then well above the " +
+             "robot, and an unprojected centre would sit at pole height. The " +
+             "tornado ignores height, but the marker and the arrow would float " +
+             "above the robot rather than sitting on it, which makes the " +
+             "offset impossible to judge by eye.")]
+    public bool projectCentreToFloor = true;
+
+    [Tooltip("Floor height. Taken from the placed arena when there is one.")]
+    public float floorY = 0f;
+
     [Tooltip("Degrees to rotate the tag's forward to get the robot's forward.\n\n" +
              "0 when the tag's up-arrow points the way the robot drives. 180 if " +
              "it is mounted facing backwards, 90 or -90 if sideways.")]
@@ -103,6 +114,9 @@ public class TagCupTracker : MonoBehaviour
         // Offset is applied in the TAG's frame, so it rotates with the robot -
         // a world-space offset would only be right at one heading.
         BotCentre = tag.TransformPoint(tagOffsetFromCentre);
+
+        // Pole height is not part of where the robot IS on the floor.
+        if (projectCentreToFloor) BotCentre = new Vector3(BotCentre.x, floorY, BotCentre.z);
 
         Vector3 fwd = tag.forward;
         fwd.y = 0f;

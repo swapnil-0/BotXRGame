@@ -138,6 +138,43 @@ public class TornadoTuner : MonoBehaviour
                 Set = v => tracker.SetBotMarkerId(Mathf.RoundToInt(v)),
                 Step = 1f, Min = 0f, Max = 10f, Default = tracker.botMarkerId,
             });
+
+            // Centre offset, tuned by eye against the real robot. A pole puts
+            // the tag directly above centre in theory; in practice the pole
+            // leans, the mount is a few millimetres out, and the only way to
+            // know is to watch the marker sit on the robot while it turns.
+            parameters.Add(new Param
+            {
+                Name = "centre off X (m)", Key = "tune_offx",
+                Get = () => tracker.tagOffsetFromCentre.x,
+                Set = v =>
+                {
+                    var o = tracker.tagOffsetFromCentre; o.x = v;
+                    tracker.tagOffsetFromCentre = o;
+                },
+                Step = 0.01f, Min = -0.5f, Max = 0.5f,
+                Default = tracker.tagOffsetFromCentre.x,
+            });
+            parameters.Add(new Param
+            {
+                Name = "centre off Z (m)", Key = "tune_offz",
+                Get = () => tracker.tagOffsetFromCentre.z,
+                Set = v =>
+                {
+                    var o = tracker.tagOffsetFromCentre; o.z = v;
+                    tracker.tagOffsetFromCentre = o;
+                },
+                Step = 0.01f, Min = -0.5f, Max = 0.5f,
+                Default = tracker.tagOffsetFromCentre.z,
+            });
+            parameters.Add(new Param
+            {
+                Name = "tag yaw off (deg)", Key = "tune_offyaw",
+                Get = () => tracker.tagYawOffsetDegrees,
+                Set = v => tracker.tagYawOffsetDegrees = v,
+                Step = 5f, Min = -180f, Max = 180f,
+                Default = tracker.tagYawOffsetDegrees,
+            });
         }
 
         parameters.Add(new Param

@@ -58,15 +58,15 @@ public class ROSIPConfig : MonoBehaviour
              "to find out whether the link works.")]
     public string[] seedAddresses =
     {
-        // wlan0 on ur-xr-robotics-rubikpi-1, the interface actually carrying
-        // traffic. Its wired interface (192.168.1.204) reported RX 0 / TX 0,
-        // so it is up but unused - connecting there would time out exactly
-        // like an unreachable host.
-        "192.168.1.245",
-        "192.168.1.204",
-        // Previously typed by hand and known not to reach this Pi. Kept last so
-        // they are reachable in the cycle but never the first suggestion:
-        // 192.168.2.216 is not even on the same subnet.
+        // TEST RubikPi (ur-xr-robotics-rubikpi-1), not the one in the robot.
+        // wlan0 is the interface carrying traffic; its wired interface showed
+        // RX 0 / TX 0, so connecting there would time out like an unreachable
+        // host.
+        "192.168.1.245",   // test Pi, wlan0
+        "192.168.1.204",   // test Pi, wired - idle
+        // Used during the demo against the ROBOT's Pi. Whether they were right
+        // is unknown: the ifconfig above is from a different machine and says
+        // nothing about the robot's address.
         "192.168.1.200",
         "192.168.2.216",
     };

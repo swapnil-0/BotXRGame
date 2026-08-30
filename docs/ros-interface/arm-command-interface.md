@@ -11,117 +11,119 @@ never have interoperated — they are different wire protocols on the same port.
 
 ## Summary
 
-| | Drive link | Arm link |
-|---|---|---|
-| Port | `10000` | **`10001`** |
-| Transport | `ros_tcp_endpoint` | **raw TCP socket in the node** |
-| Payload | `geometry_msgs/Twist` on `/cmd_vel` | **newline-terminated text** |
-| Commands | continuous at 10 Hz | `SWEEP` / `KICK` / `SET_HOME` |
-| Direction | headset → robot | headset → robot |
+**Both links now share port 10000.** The headset opens one ROS-TCP connection
+and publishes two topics on it.
 
-The arm link is **not ROS-TCP**. `gesture_arm_teleop.py` binds its own socket:
+| | Drive | Arm |
+|---|---|---|
+| Port | `10000` | `10000` (same connection) |
+| Topic | `/cmd_vel` | `/arm_command` |
+| Type | `geometry_msgs/Twist` | `std_msgs/String` |
+| Rate | 10 Hz continuous | on button press |
+
+One endpoint to run, one connection to debug, one thing that can be down. The
+earlier two-port arrangement added a second endpoint and a failure mode where
+driving worked while the arm silently did nothing.
+
+```bash
+ros2 run ros_tcp_endpoint default_server_endpoint \
+  --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000
+```
+
+Bind `0.0.0.0`, never `127.0.0.1` - a loopback bind is unreachable from the
+headset and looks exactly like a robot that is switched off.
+
+---
+
+## Robot side: what needs to change
+
+`gesture_arm_teleop.py` currently runs its own TCP server on 10001 and reads
+newline-terminated lines. To use the shared link, subscribe instead:
 
 ```python
-server_socket.bind(('0.0.0.0', self.tcp_port))   # tcp_port defaults to 10001
-...
-buffer += data.decode('utf-8')
-while "\n" in buffer:
-    line, buffer = buffer.split("\n", 1)
-    self._trigger_action(line.strip().upper(), ...)
+from std_msgs.msg import String
+
+self.create_subscription(String, "/arm_command", self._on_arm_command, 10)
+
+def _on_arm_command(self, msg):
+    self._trigger_action(msg.data.strip().upper(), source="ROS /arm_command")
 ```
 
-So the headset opens a plain TCP connection and writes `SWEEP\n`. No ROS
-message framing, no topic, no JSON.
+`_trigger_action` needs no changes - the payload is the same bare command word
+the socket path already receives.
+
+The socket server can stay for bench testing with `nc`; the two paths do not
+conflict.
 
 ---
 
-## Commands the node accepts
+## Commands
 
-Read straight from `_trigger_action`:
+| Command | Effect | Button |
+|---|---|---|
+| `SWEEP` | Home -> Left -> Right -> Home | **A** |
+| `KICK` | Home -> Extend -> Home | **B** |
+| `SET_HOME` | dynamic home calibration | not bound |
 
-| Command | Effect |
-|---|---|
-| `SWEEP` | Home -> Left -> Right -> Home |
-| `KICK` | Home -> Extend -> Home |
-| `SET_HOME` | dynamic home calibration |
+Sent as the bare word, uppercased by the node. **Not JSON** - the node matches
+the whole string, so a JSON wrapper arrives as an unknown action and is
+dropped.
 
-Anything else is logged as `Unknown action command received` and dropped.
-Commands are **uppercased** by the node, so case does not matter on the wire.
-
-### Lockout
-
-The node refuses every command while a gesture is playing:
-
-```
-[LOCKOUT WARNING] Incoming 'SWEEP' from TCP Client ... ignored.
-Reason: Arm is currently busy in state: ...
-```
-
-So there is no abort. The headset used to send a `STOW` on the B button; that
-command does not exist here and would only produce warnings, so B now sends
-`KICK`.
+The node refuses commands while a gesture plays and logs the rejection, so
+there is no abort and none is sent.
 
 ---
 
-## Headset side
+## Testing
 
-| Button | Sends |
-|---|---|
-| **A** | `SWEEP` |
-| **B** | `KICK` |
+Watch what the headset actually sends, with no ROS installed at all:
 
-The connection is a raw `TcpClient` opened to `<robot-ip>:10001` once CONNECT is
-pressed on the config screen. It reconnects on its own every two seconds if the
-node is not listening, and connect/send run off Unity's main thread — a TCP
-connect to an unreachable host blocks for the OS timeout, and doing that on the
-main thread freezes the headset, which looks like a crash rather than a network
-problem.
+```bash
+# stop the endpoint first - it holds the port
+python3 tools/ros_tcp_probe.py
+```
 
-Settings on `ArmRosPublisher`:
+```
+[CONNECTED] 192.168.1.102:42526
+  __publish: {"topic":"/cmd_vel","message_name":"geometry_msgs/Twist",...}
+  DRIVE  linear.x=+0.150  angular.z=-0.268  fwd[----|-#--] turn[---#|----]
+  BUTTON /arm_command  ->  SWEEP
+```
+
+With the endpoint running instead:
+
+```bash
+ros2 topic echo /cmd_vel
+ros2 topic echo /arm_command
+ros2 topic pub --once /arm_command std_msgs/String '{data: "SWEEP"}'
+```
+
+The legacy socket path still works if the robot has not moved to the topic yet -
+set `useRawTcp` on `ArmRosPublisher` and run the node as before:
+
+```bash
+printf 'SWEEP\n' | nc <robot-ip> 10001
+```
+
+---
+
+## Settings on ArmRosPublisher
 
 | Setting | Default | Notes |
 |---|---|---|
-| `useRawTcp` | `true` | off falls back to the old ROS-topic path |
-| `armPort` | `10001` | matches the node's `tcp_port` parameter |
-| `armIP` | empty | copies the address entered on the connect screen |
+| `useMainConnection` | `true` | publish on the /cmd_vel link, port 10000 |
+| `useRawTcp` | `false` | legacy socket on 10001 |
+| `topicName` | `/arm_command` | |
 | `swingActionName` | `SWEEP` | A button |
 | `kickActionName` | `KICK` | B button |
 | `cooldownSeconds` | `1.5` | the node also locks out on its own |
 
 ---
 
-## Testing without the headset
+## Wire format note
 
-The node is a plain socket server, so anything can drive it:
-
-```bash
-# one command
-printf 'SWEEP\n' | nc <robot-ip> 10001
-
-# interactive - type SWEEP or KICK and press enter
-nc <robot-ip> 10001
-```
-
-Confirm it is listening:
-
-```bash
-ss -tlnp | grep 10001
-```
-
-The node logs every accepted command with its source, so a successful send from
-the headset appears as `[INPUT TRIGGER] Source: TCP Client ('<ip>', <port>)`.
-
----
-
-## Why the first version of this document was wrong
-
-It specified `std_msgs/String` carrying JSON over a second `ros_tcp_endpoint`,
-because that is what `bot_sim` implements and what the Unity side already
-spoke. The robot node was written against a different design — a socket it owns
-directly — and neither side was wrong in isolation. The mismatch was invisible
-from both ends: the headset reported a healthy connection because a TCP socket
-did open, and the node reported nothing because ROS-TCP framing never produced
-a newline for it to parse.
-
-Worth remembering as a class of bug: **a connection that opens is not a
-connection that is understood.**
+ROS-TCP-Connector sends message bodies **without** the 4-byte CDR
+encapsulation header; the endpoint prepends it. A `Twist` is 48 bytes on the
+wire, not 52. This matters for anything parsing the stream directly - the first
+version of `ros_tcp_probe.py` expected 52 and silently decoded nothing from a
+stream that was entirely correct.

@@ -57,13 +57,20 @@ public class ArmRosPublisher : MonoBehaviour
     public float pressThreshold = 0.5f;
 
     [Header("Transport")]
-    [Tooltip("Send plain newline-terminated text over a raw TCP socket instead " +
-             "of publishing a ROS topic.\n\n" +
-             "ON, because that is what the robot's arm node actually is: it " +
-             "opens its own socket on 10001 and reads lines like 'SWEEP'. It is " +
-             "not a ros_tcp_endpoint, so ROS-TCP frames could never be " +
-             "understood no matter what address or topic we used.")]
-    public bool useRawTcp = true;
+    [Tooltip("Publish the arm command as a ROS topic on the SAME connection as " +
+             "/cmd_vel, port 10000.\n\n" +
+             "This is the agreed arrangement: one link, two topics. The probe " +
+             "confirmed the headset's ROS-TCP link works, so putting the arm on " +
+             "it removes a second endpoint, a second connection to debug, and a " +
+             "second thing that can be independently down.\n\n" +
+             "The robot side must subscribe to /arm_command instead of reading " +
+             "its own socket - see docs/ros-interface/arm-command-interface.md")]
+    public bool useMainConnection = true;
+
+    [Tooltip("Legacy: raw newline-terminated text to the node's own socket on " +
+             "10001. Kept for the case where the robot has not moved to the " +
+             "topic yet, since it is what gesture_arm_teleop.py currently reads.")]
+    public bool useRawTcp = false;
 
     [Header("ROS action names")]
     [Tooltip("Payload action for the A button.\n\n" +
@@ -199,22 +206,35 @@ public class ArmRosPublisher : MonoBehaviour
             return;
         }
 
-        if (ros == null) ros = CreateArmConnection(ip);
-
-        if (ros == null)
+        if (useMainConnection)
         {
-            if (!fallBackToMainConnection) return;
-
+            // Same connection /cmd_vel already uses. No second socket, no
+            // second endpoint on the robot, and it inherits the link the probe
+            // just proved works.
             ros = mainRos;
-            usingFallback = true;
+            usingFallback = false;
+        }
+        else
+        {
+            if (ros == null) ros = CreateArmConnection(ip);
+
+            if (ros == null)
+            {
+                if (!fallBackToMainConnection) return;
+
+                ros = mainRos;
+                usingFallback = true;
+            }
         }
 
         ros.RegisterPublisher<StringMsg>(topicName);
         registered = true;
 
-        LinkDescription = usingFallback
-            ? string.Format("{0}:{1} (FALLBACK - main link)", ip, mainRos.RosPort)
-            : string.Format("{0}:{1}", ip, armPort);
+        LinkDescription = useMainConnection
+            ? string.Format("{0}:{1} (with /cmd_vel)", ip, mainRos.RosPort)
+            : usingFallback
+                ? string.Format("{0}:{1} (FALLBACK - main link)", ip, mainRos.RosPort)
+                : string.Format("{0}:{1}", ip, armPort);
 
         Status = "publisher on " + topicName + " via " + LinkDescription;
         Debug.LogFormat("[Arm] {0} -> {1}", topicName, LinkDescription);
@@ -368,19 +388,11 @@ public class ArmRosPublisher : MonoBehaviour
             return;
         }
 
-        // Built here rather than via ArmController.BuildRosCommand so the action
-        // name is not hardcoded to SWING. Same shape, same parser on the robot.
-        //
-        // STOW carries no yaw: bot_sim reads only "action" for it, and sending
-        // a meaningless field invites someone later to assume it means
-        // something. Yaw stays 0 on a swing too - the stroke is straight ahead,
-        // and aiming needs a cup-relative bearing that does not exist until cup
-        // detection runs.
-        string payload = abort
-            ? string.Format("{{\"action\":\"{0}\"}}", actionName)
-            : string.Format(
-                System.Globalization.CultureInfo.InvariantCulture,
-                "{{\"action\":\"{0}\",\"yaw\":{1:F3}}}", actionName, 0f);
+        // Bare command word, not JSON. The robot node matches the whole line
+        // against SWEEP / KICK / SET_HOME, so a JSON wrapper would arrive as an
+        // unknown action and be dropped. Same vocabulary over the topic as over
+        // the socket, which keeps one thing to agree on rather than two.
+        string payload = actionName;
 
         ros.Publish(topicName, new StringMsg(payload));
 

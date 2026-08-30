@@ -37,25 +37,57 @@ HEADER = struct.Struct("<I")
 
 def decode_twist(payload):
     """
-    geometry_msgs/Twist as CDR: a 4-byte encapsulation header then six
-    float64 - linear xyz, angular xyz.
+    geometry_msgs/Twist: six float64 - linear xyz, angular xyz.
+
+    ROS-TCP-Connector sends 48 raw bytes with NO CDR encapsulation header; the
+    endpoint prepends the 4-byte header before handing it to ROS. The first
+    version of this decoder demanded 52 bytes and so silently decoded nothing,
+    printing empty strings over a stream that was in fact perfectly correct -
+    which nearly cost another round of debugging the wrong half of the system.
     """
-    if len(payload) < 4 + 48:
+    if len(payload) == 48:
+        body = payload
+    elif len(payload) >= 52:
+        body = payload[4:52]          # with header, e.g. replayed from a bag
+    else:
         return None
-    body = payload[4:4 + 48]
+
     lx, ly, lz, ax, ay, az = struct.unpack("<6d", body)
     return lx, ly, lz, ax, ay, az
 
 
 def decode_string(payload):
-    """std_msgs/String as CDR: 4-byte header, u32 length, then bytes."""
-    if len(payload) < 8:
-        return None
-    try:
-        n = struct.unpack_from("<I", payload, 4)[0]
-        return payload[8:8 + n].rstrip(b"\x00").decode("utf-8", "replace")
-    except Exception:
-        return None
+    """
+    std_msgs/String: u32 length then bytes, again with no CDR header from
+    Unity. Falls back to the header-prefixed layout.
+    """
+    for offset in (0, 4):
+        if len(payload) < offset + 4:
+            continue
+        try:
+            n = struct.unpack_from("<I", payload, offset)[0]
+            if 0 < n <= len(payload) - offset - 4:
+                return payload[offset + 4:offset + 4 + n] \
+                    .rstrip(b"\x00").decode("utf-8", "replace")
+        except Exception:
+            pass
+    return None
+
+
+def stick_bar(linear, angular, width=9):
+    """
+    Crude ASCII gauge so stick direction is readable at a glance while driving.
+    Watching six-decimal floats scroll past does not tell you whether forward
+    means forward.
+    """
+    def cell(v, scale=0.3):
+        n = int(round(max(-1.0, min(1.0, v / scale)) * (width // 2)))
+        row = ["-"] * width
+        row[width // 2] = "|"
+        row[max(0, min(width - 1, width // 2 + n))] = "#"
+        return "".join(row)
+
+    return f"fwd[{cell(linear)}] turn[{cell(angular, 1.0)}]"
 
 
 def read_exactly(sock, n):
@@ -115,20 +147,31 @@ def handle_client(conn, addr):
                 print(f"  {topic}: {payload.decode('utf-8', 'replace').strip()}")
                 continue
 
-            twist = decode_twist(payload) if size >= 52 else None
+            twist = decode_twist(payload)
             if twist:
                 lx, ly, lz, ax, ay, az = twist
-                # Only print moving commands and the first few zeros: a 10 Hz
-                # stream of zeros scrolls anything useful off the screen.
-                if abs(lx) > 1e-6 or abs(az) > 1e-6 or counts[topic] < 5:
-                    print(f"  {topic}  linear.x={lx:+.3f}  angular.z={az:+.3f}"
-                          f"   (#{counts[topic]})")
+                moving = abs(lx) > 1e-6 or abs(az) > 1e-6
+
+                # A 10 Hz stream of zeros scrolls everything useful off the
+                # screen, so idle frames are counted rather than printed - but
+                # the transition into and out of idle is shown, because "the
+                # stick did something" is the fact under test.
+                if moving:
+                    bar = stick_bar(lx, az)
+                    print(f"  DRIVE  linear.x={lx:+.3f}  angular.z={az:+.3f}  "
+                          f"{bar}   (#{counts[topic]})")
+                elif counts[topic] < 3 or counts.get("_was_moving"):
+                    print(f"  DRIVE  idle (0.000, 0.000)   (#{counts[topic]})")
+
+                counts["_was_moving"] = moving
+                continue
+
+            text = decode_string(payload)
+            if text is not None:
+                # Arm commands land here once both links share port 10000.
+                print(f"  BUTTON {topic}  ->  {text}   (#{counts[topic]})")
             else:
-                text = decode_string(payload)
-                if text is not None:
-                    print(f"  {topic}  {text!r}   (#{counts[topic]})")
-                else:
-                    print(f"  {topic}  {size} bytes   (#{counts[topic]})")
+                print(f"  {topic}  {size} bytes   (#{counts[topic]})")
 
             if time.time() - last_report > 5:
                 summary = "  ".join(f"{t}={n}" for t, n in counts.items())

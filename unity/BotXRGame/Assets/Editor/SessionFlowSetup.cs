@@ -651,6 +651,75 @@ public static class SessionFlowSetup
         EditorUtility.DisplayDialog("BotXRGame - Controls", msg, "OK");
     }
 
+    /// <summary>
+    /// Force the arm onto the shared /cmd_vel connection.
+    ///
+    /// Its own command because it OVERWRITES serialized values. useRawTcp is
+    /// already true in the scene from when the robot node owned its own socket,
+    /// and a code default cannot reach a field Unity has already serialized -
+    /// the same trap that left twinTornadoRadiusFraction at 0.11 and cost a
+    /// demo its tornado.
+    /// </summary>
+    [MenuItem("Tools/BotXRGame/Arm On Shared Port 10000", false, 44)]
+    public static void ArmOnSharedPort()
+    {
+        var pub = Object.FindAnyObjectByType<ArmRosPublisher>();
+        if (pub == null)
+        {
+            EditorUtility.DisplayDialog("BotXRGame",
+                "No ArmRosPublisher in the scene. Run Wire Session Flow first.", "OK");
+            return;
+        }
+
+        var so = new SerializedObject(pub);
+        var changes = new List<string>();
+
+        void SetBool(string field, bool value)
+        {
+            var p = so.FindProperty(field);
+            if (p != null && p.boolValue != value)
+            {
+                changes.Add(string.Format("{0}: {1} -> {2}", field, p.boolValue, value));
+                p.boolValue = value;
+            }
+        }
+
+        void SetStr(string field, string value)
+        {
+            var p = so.FindProperty(field);
+            if (p != null && p.stringValue != value)
+            {
+                changes.Add(string.Format("{0}: '{1}' -> '{2}'",
+                    field, p.stringValue, value));
+                p.stringValue = value;
+            }
+        }
+
+        SetBool("useMainConnection", true);
+        SetBool("useRawTcp", false);
+        SetStr("topicName", "/arm_command");
+        SetStr("swingActionName", "SWEEP");
+        SetStr("kickActionName", "KICK");
+        SetStr("armIP", "");          // empty = follow the drive link's address
+
+        if (changes.Count == 0)
+        {
+            EditorUtility.DisplayDialog("BotXRGame",
+                "Arm is already on the shared connection.", "OK");
+            return;
+        }
+
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(pub);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+
+        string msg = "Arm moved to the /cmd_vel connection:\n  " +
+                     string.Join("\n  ", changes) +
+                     "\n\nSave the scene.";
+        Debug.Log("[BotXRGame] " + msg);
+        EditorUtility.DisplayDialog("BotXRGame", msg, "OK");
+    }
+
     /// <summary>Unconditional assignment, unlike Wire(). Used only by the bind command.</summary>
     private static void Overwrite(Object target, string field, Object value)
     {

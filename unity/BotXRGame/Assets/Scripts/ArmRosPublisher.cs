@@ -159,8 +159,18 @@ public class ArmRosPublisher : MonoBehaviour
         // opened against 192.168.1.100 while the drive link used the address
         // just typed in - two links to two different machines, and only one of
         // them a real robot.
+        //
+        // The null case must WAIT, not proceed. Previously a missing
+        // RobotController skipped the guard entirely and registered against the
+        // default address - and RobotController is found a frame or two late,
+        // so that was the normal path, not an edge case.
         if (driveRobot == null) driveRobot = FindAnyObjectByType<RobotController>();
-        if (driveRobot != null && !driveRobot.connectionRequested)
+        if (driveRobot == null)
+        {
+            Status = "waiting for RobotController";
+            return;
+        }
+        if (!driveRobot.connectionRequested)
         {
             Status = "waiting for CONNECT";
             return;
@@ -189,6 +199,28 @@ public class ArmRosPublisher : MonoBehaviour
             registered = false;
         }
 
+        // useMainConnection wins over useRawTcp, and is checked FIRST.
+        //
+        // useRawTcp is already serialized as true in the scene from when the
+        // robot node owned its own socket, so changing its code default to
+        // false changed nothing - the scene value survives, which is the same
+        // trap that left twinTornadoRadiusFraction at 0.11. Ordering the checks
+        // this way means the new field, whose default does apply, decides.
+        if (useMainConnection)
+        {
+            ros = mainRos;
+            usingFallback = false;
+            ros.RegisterPublisher<StringMsg>(topicName);
+            registered = true;
+            openedIP = ip;
+
+            LinkDescription = string.Format("{0}:{1} (with /cmd_vel)",
+                ip, mainRos.RosPort);
+            Status = "publisher on " + topicName + " via " + LinkDescription;
+            Debug.LogFormat("[Arm] {0} -> {1}", topicName, LinkDescription);
+            return;
+        }
+
         // Raw TCP path: no ROS publisher at all, just a socket.
         if (useRawTcp)
         {
@@ -206,35 +238,24 @@ public class ArmRosPublisher : MonoBehaviour
             return;
         }
 
-        if (useMainConnection)
+        // Only reached when useMainConnection is false: a separate ROS-TCP
+        // connection on armPort. The shared-connection case returned above.
+        if (ros == null) ros = CreateArmConnection(ip);
+
+        if (ros == null)
         {
-            // Same connection /cmd_vel already uses. No second socket, no
-            // second endpoint on the robot, and it inherits the link the probe
-            // just proved works.
+            if (!fallBackToMainConnection) return;
+
             ros = mainRos;
-            usingFallback = false;
-        }
-        else
-        {
-            if (ros == null) ros = CreateArmConnection(ip);
-
-            if (ros == null)
-            {
-                if (!fallBackToMainConnection) return;
-
-                ros = mainRos;
-                usingFallback = true;
-            }
+            usingFallback = true;
         }
 
         ros.RegisterPublisher<StringMsg>(topicName);
         registered = true;
 
-        LinkDescription = useMainConnection
-            ? string.Format("{0}:{1} (with /cmd_vel)", ip, mainRos.RosPort)
-            : usingFallback
-                ? string.Format("{0}:{1} (FALLBACK - main link)", ip, mainRos.RosPort)
-                : string.Format("{0}:{1}", ip, armPort);
+        LinkDescription = usingFallback
+            ? string.Format("{0}:{1} (FALLBACK - main link)", ip, mainRos.RosPort)
+            : string.Format("{0}:{1}", ip, armPort);
 
         Status = "publisher on " + topicName + " via " + LinkDescription;
         Debug.LogFormat("[Arm] {0} -> {1}", topicName, LinkDescription);
@@ -290,6 +311,22 @@ public class ArmRosPublisher : MonoBehaviour
     void Update()
     {
         if (!registered) TryRegister();
+
+        // Re-register if the drive link's address changed after we bound.
+        // Registration used to happen exactly once, so an arm bound to a stale
+        // address stayed bound to it for the whole session no matter how many
+        // times the player reconnected.
+        if (registered && driveRobot != null &&
+            !string.IsNullOrEmpty(driveRobot.rosIP) &&
+            string.IsNullOrEmpty(armIP) &&
+            driveRobot.rosIP != openedIP)
+        {
+            Debug.LogFormat("[Arm] drive address changed {0} -> {1}, rebinding",
+                openedIP, driveRobot.rosIP);
+            registered = false;
+            if (tcp != null) { tcp.Disconnect(); tcp = null; }
+            ros = null;
+        }
 
         // Keep the HUD honest about the socket's live state - the raw client
         // reconnects on its own, so a status captured at registration would go

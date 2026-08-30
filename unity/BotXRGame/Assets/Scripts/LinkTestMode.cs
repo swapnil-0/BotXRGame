@@ -36,6 +36,26 @@ public class LinkTestMode : MonoBehaviour
 
     [Range(0f, 0.9f)] public float deadzone = 0.15f;
 
+    [Header("Topic")]
+    [Tooltip("Grip cycles through these. The robot's drive topic belongs to the " +
+             "vendor stack and is not knowable from this repo - and a wrong " +
+             "name fails identically to a dead link, because the headset " +
+             "publishes happily into a topic nobody subscribes to.\n\n" +
+             "Confirm the real one on the robot with: ros2 topic list")]
+    public string[] candidateTopics =
+    {
+        "/cmd_vel",
+        "/controller/cmd_vel",
+        "/ros_robot_controller/cmd_vel",
+        "/jetrover/cmd_vel",
+    };
+
+    public InputActionReference cycleTopicAction;   // grip
+    [Range(0.1f, 0.9f)] public float pressThreshold = 0.5f;
+
+    private int topicIndex;
+    private bool cycleWasPressed;
+
     [Header("Safety")]
     [Tooltip("Publish zero when the stick is centred rather than stopping.\n\n" +
              "A robot that keeps its last command when publishing stops is a " +
@@ -51,6 +71,14 @@ public class LinkTestMode : MonoBehaviour
         if (robot == null) robot = FindAnyObjectByType<RobotController>();
         if (arm == null) arm = FindAnyObjectByType<ArmRosPublisher>();
         if (moveAction != null && moveAction.action != null) moveAction.action.Enable();
+        if (cycleTopicAction != null && cycleTopicAction.action != null)
+            cycleTopicAction.action.Enable();
+
+        // Start on whichever topic the controller is already set to, so the
+        // list reflects reality rather than resetting a working configuration.
+        if (robot != null && candidateTopics != null)
+            for (int i = 0; i < candidateTopics.Length; i++)
+                if (candidateTopics[i] == robot.topicName) topicIndex = i;
 
         StandDownEverythingElse();
         HideOtherHudText();
@@ -141,6 +169,8 @@ public class LinkTestMode : MonoBehaviour
         if (stick.magnitude < deadzone) stick = Vector2.zero;
         else lastNonZeroTime = Time.time;
 
+        HandleTopicCycle();
+
         // Straight to the controller's own fields, published at its publishRate.
         // No smoothing, no inertia: this is measuring the link, and anything
         // that shapes the value makes a wrong value harder to recognise.
@@ -150,12 +180,27 @@ public class LinkTestMode : MonoBehaviour
         Render(stick);
     }
 
+    private void HandleTopicCycle()
+    {
+        if (cycleTopicAction == null || cycleTopicAction.action == null) return;
+        if (candidateTopics == null || candidateTopics.Length == 0) return;
+
+        bool pressed = cycleTopicAction.action.ReadValue<float>() > pressThreshold;
+
+        if (pressed && !cycleWasPressed)
+        {
+            topicIndex = (topicIndex + 1) % candidateTopics.Length;
+            if (robot != null) robot.SetTopic(candidateTopics[topicIndex]);
+        }
+        cycleWasPressed = pressed;
+    }
+
     private void Render(Vector2 stick)
     {
         if (display == null) return;
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("LINK TEST - stick drives, A swing, B stow");
+        sb.AppendLine("LINK TEST - stick drives, A SWEEP, B KICK, grip = topic");
 
         // Connection first: everything below is meaningless if this is wrong,
         // and it is the single most common cause of "nothing happens".
@@ -164,7 +209,10 @@ public class LinkTestMode : MonoBehaviour
         else
             sb.AppendFormat("{0}\n", robot.connectionStatus);
 
-        sb.AppendFormat("{0}:{1}   {2}\n", robot.rosIP, robot.rosPort, robot.topicName);
+        sb.AppendFormat("{0}:{1}   {2}  [{3}/{4}]\n",
+            robot.rosIP, robot.rosPort, robot.topicName,
+            topicIndex + 1,
+            candidateTopics != null ? candidateTopics.Length : 1);
 
         float age = robot.LastPublishTime >= 0f ? Time.time - robot.LastPublishTime : -1f;
         sb.AppendFormat("sent {0}   last {1:F3} / {2:F3}   {3}\n",

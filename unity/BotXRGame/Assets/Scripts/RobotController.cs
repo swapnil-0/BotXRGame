@@ -59,6 +59,28 @@ public class RobotController : MonoBehaviour
             connectionStatus = "Connecting / Retrying...";
     }
 
+    /// <summary>
+    /// Publish to a different topic at runtime.
+    ///
+    /// The robot's drive topic is not knowable from this repo - it belongs to
+    /// the vendor stack - and a wrong topic name fails exactly like a dead
+    /// link: the headset publishes happily into a topic nobody subscribes to.
+    /// Being able to try names in the headset turns a rebuild per guess into a
+    /// button press.
+    /// </summary>
+    public void SetTopic(string newTopic)
+    {
+        if (string.IsNullOrEmpty(newTopic) || newTopic == topicName) return;
+
+        topicName = newTopic;
+
+        // Re-register: the connector maps topic to type at registration, and
+        // publishing to an unregistered topic is silently dropped.
+        if (ros != null) ros.RegisterPublisher<TwistMsg>(topicName);
+
+        Debug.LogFormat("[Robot] publishing to {0}", topicName);
+    }
+
     // --- external command override ---------------------------------------
     private bool hasExternalCommand;
     private float externalLinear, externalAngular;

@@ -592,7 +592,13 @@ public static class SessionFlowSetup
         if (linkTest != null)
         {
             Overwrite(linkTest, "moveAction", move);
-            done.Add("LinkTestMode.moveAction (stick)");
+
+            // Grip cycles the drive topic. The tuner also uses grip, but it is
+            // disabled in Link Test, so there is no conflict.
+            var menuAct = FindActionReference("Bot", "Menu");
+            if (menuAct != null) Overwrite(linkTest, "cycleTopicAction", menuAct);
+
+            done.Add("LinkTestMode: stick drives, grip cycles /cmd_vel topic");
         }
 
         var botMixer = Object.FindAnyObjectByType<BotCommandMixer>();

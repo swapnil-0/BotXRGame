@@ -161,9 +161,13 @@ public class BotTagMarker : MonoBehaviour
         SetVisible(visible);
         if (!visible) return;
 
-        // Straight to the tag pose, no smoothing. Smoothing here would make the
-        // marker drift after the robot stops, which reads as tracking error.
-        Vector3 p = tag.position;
+        // The robot's CENTRE, not the tag. The marker stands for the robot -
+        // it is what the tornado acts on and what crosses the finish - so
+        // drawing it on the sticker would misreport by the mounting offset.
+        //
+        // No smoothing: that would make the marker drift after the robot stops,
+        // which reads as tracking error.
+        Vector3 p = tagTracker.BotCentre;
 
         dot.position = p + Vector3.up * dotHeight;
         stem.SetPosition(0, p);

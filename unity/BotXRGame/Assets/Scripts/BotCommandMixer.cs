@@ -134,8 +134,12 @@ public class BotCommandMixer : MonoBehaviour
             return;
         }
 
-        Vector3 here = tag.position;
-        Vector3 facing = Flat(tag.forward);
+        // Robot CENTRE and forward, not the tag's. The robot turns about its
+        // centre, so an off-centre tag sweeps an arc during a spin-in-place -
+        // using it directly would make the tornado pull vary with heading while
+        // the robot stood still, which reads as the vortex flickering.
+        Vector3 here = tagTracker.BotCentre;
+        Vector3 facing = Flat(tagTracker.BotForward);
 
         Vector3 start = run != null ? run.StartPoint : here;
         Vector3 toStart = start - here;

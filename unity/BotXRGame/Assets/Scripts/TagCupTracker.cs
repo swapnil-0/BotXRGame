@@ -64,9 +64,53 @@ public class TagCupTracker : MonoBehaviour
 
     private readonly Dictionary<int, CupState> cups = new Dictionary<int, CupState>();
 
+    [Header("Bot tag mounting")]
+    [Tooltip("Where the tag sits relative to the robot's CENTRE, in the tag's " +
+             "own axes, metres. z is along the robot's forward.\n\n" +
+             "A tag mounted 0.12 m behind centre gives (0, 0, 0.12): the centre " +
+             "is 0.12 m FORWARD of the tag.\n\n" +
+             "This matters because the robot turns about its centre, not about " +
+             "the tag. An uncorrected tag 0.12 m off centre sweeps a 0.24 m " +
+             "circle during a spin-in-place, so the tornado would pull hardest " +
+             "at one point in every rotation and the robot would appear to " +
+             "orbit while standing still.")]
+    public Vector3 tagOffsetFromCentre = Vector3.zero;
+
+    [Tooltip("Degrees to rotate the tag's forward to get the robot's forward.\n\n" +
+             "0 when the tag's up-arrow points the way the robot drives. 180 if " +
+             "it is mounted facing backwards, 90 or -90 if sideways.")]
+    public float tagYawOffsetDegrees = 0f;
+
     /// <summary>Bot tag pose, or null when the bot tag is not currently tracked.</summary>
     public Transform BotTag { get; private set; }
     public bool BotTracked { get; private set; }
+
+    /// <summary>
+    /// The robot's CENTRE, derived from the tag pose and the mounting offset.
+    ///
+    /// Everything about the game should use this rather than the tag: the
+    /// tornado pulls the robot, the arena contains the robot, and the finish
+    /// line is crossed by the robot - none of those are about where a sticker
+    /// happens to be.
+    /// </summary>
+    public Vector3 BotCentre { get; private set; }
+
+    /// <summary>Robot's forward on the floor plane, after the yaw offset.</summary>
+    public Vector3 BotForward { get; private set; } = Vector3.forward;
+
+    private void UpdateBotPose(Transform tag)
+    {
+        // Offset is applied in the TAG's frame, so it rotates with the robot -
+        // a world-space offset would only be right at one heading.
+        BotCentre = tag.TransformPoint(tagOffsetFromCentre);
+
+        Vector3 fwd = tag.forward;
+        fwd.y = 0f;
+        if (fwd.sqrMagnitude < 1e-6f) fwd = Vector3.forward;
+
+        BotForward = (Quaternion.Euler(0f, tagYawOffsetDegrees, 0f)
+                      * fwd.normalized);
+    }
 
     /// <summary>
     /// Every id seen this frame and where it is, bot included.
@@ -137,7 +181,12 @@ public class TagCupTracker : MonoBehaviour
 
             if (id == botMarkerId)
             {
-                if (tracking) { BotTag = img.transform; BotTracked = true; }
+                if (tracking)
+                {
+                    BotTag = img.transform;
+                    BotTracked = true;
+                    UpdateBotPose(img.transform);
+                }
                 continue;
             }
 

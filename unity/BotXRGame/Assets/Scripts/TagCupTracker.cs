@@ -74,7 +74,10 @@ public class TagCupTracker : MonoBehaviour
              "circle during a spin-in-place, so the tornado would pull hardest " +
              "at one point in every rotation and the robot would appear to " +
              "orbit while standing still.")]
-    public Vector3 tagOffsetFromCentre = Vector3.zero;
+    /// Measured on the current build: the tag hangs off the REAR on a paper
+    /// flap, so the robot's centre is ~0.115 m FORWARD of the tag, and the
+    /// arm points away from it.
+    public Vector3 tagOffsetFromCentre = new Vector3(0f, 0f, 0.115f);
 
     [Tooltip("Project the derived centre down to the floor.\n\n" +
              "ON when the tag rides a pole: the tag is then well above the " +
@@ -111,19 +114,64 @@ public class TagCupTracker : MonoBehaviour
 
     private void UpdateBotPose(Transform tag)
     {
-        // Offset is applied in the TAG's frame, so it rotates with the robot -
-        // a world-space offset would only be right at one heading.
-        BotCentre = tag.TransformPoint(tagOffsetFromCentre);
+        // Pick whichever tag axis lies FLATTEST, rather than always using
+        // tag.forward. On a tag lying flat - which is how it is mounted - the
+        // normal points straight up, and if that normal happens to be 'forward'
+        // then flattening it yields nothing and the heading silently falls back
+        // to world forward. Providers disagree about which axis is the normal,
+        // so the flattest one is chosen by measurement instead of by assumption.
+        Vector3 a = tag.forward;
+        Vector3 b = tag.up;
+        Vector3 inPlane = Mathf.Abs(a.y) <= Mathf.Abs(b.y) ? a : b;
+
+        inPlane.y = 0f;
+        if (inPlane.sqrMagnitude < 1e-6f) inPlane = Vector3.forward;
+
+        BotForward = (Quaternion.Euler(0f, tagYawOffsetDegrees, 0f)
+                      * inPlane.normalized);
+
+        // Offset applied in the ROBOT's frame - along the corrected forward and
+        // its right - not in the tag's raw local axes. The tag's local axes on
+        // a flat marker include a vertical one, so an offset expressed there
+        // would partly push the centre through the floor. z is forward, x is
+        // right, which is also what makes the joystick tuning readable.
+        Vector3 right = Vector3.Cross(Vector3.up, BotForward);
+
+        BotCentre = tag.position
+                  + BotForward * tagOffsetFromCentre.z
+                  + right * tagOffsetFromCentre.x
+                  + Vector3.up * tagOffsetFromCentre.y;
 
         // Pole height is not part of where the robot IS on the floor.
         if (projectCentreToFloor) BotCentre = new Vector3(BotCentre.x, floorY, BotCentre.z);
+    }
 
-        Vector3 fwd = tag.forward;
-        fwd.y = 0f;
-        if (fwd.sqrMagnitude < 1e-6f) fwd = Vector3.forward;
+    /// <summary>
+    /// Set the yaw offset so the robot's forward points along <paramref
+    /// name="worldDir"/> right now.
+    ///
+    /// Called when the run starts, with the robot physically placed facing the
+    /// finish. That turns "which tag axis means forward, and which way is the
+    /// tag mounted" - two questions this codebase has already answered wrongly
+    /// once each - into a single measurement taken at the one moment the true
+    /// answer is known.
+    /// </summary>
+    public void CalibrateForwardTo(Vector3 worldDir)
+    {
+        if (BotTag == null || !BotTracked) return;
 
-        BotForward = (Quaternion.Euler(0f, tagYawOffsetDegrees, 0f)
-                      * fwd.normalized);
+        worldDir.y = 0f;
+        if (worldDir.sqrMagnitude < 1e-6f) return;
+
+        // Re-derive the raw heading with the CURRENT offset removed, so
+        // calibrating twice does not compound.
+        Vector3 raw = Quaternion.Euler(0f, -tagYawOffsetDegrees, 0f) * BotForward;
+
+        tagYawOffsetDegrees = Vector3.SignedAngle(raw, worldDir.normalized, Vector3.up);
+        UpdateBotPose(BotTag);
+
+        Debug.LogFormat("[Cups] forward calibrated: yaw offset {0:F0} deg",
+            tagYawOffsetDegrees);
     }
 
     /// <summary>

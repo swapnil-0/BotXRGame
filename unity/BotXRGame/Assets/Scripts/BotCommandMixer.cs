@@ -52,6 +52,13 @@ public class BotCommandMixer : MonoBehaviour
     [Range(0.1f, 0.9f)] public float pressThreshold = 0.5f;
     private bool startWasPressed;
 
+    [Tooltip("On START, take the robot's current heading to be 'facing the " +
+             "finish' and derive the tag's yaw offset from it.\n\n" +
+             "Turn OFF only if you want to set tagYawOffsetDegrees by hand. " +
+             "Measuring beats hardcoding here: the mount is taped paper, and " +
+             "marker providers disagree about which tag axis is forward.")]
+    public bool calibrateHeadingOnStart = true;
+
     [Header("Approach")]
     [Tooltip("Metres from the start point that counts as arrived.")]
     public float arriveRadius = 0.15f;
@@ -155,6 +162,20 @@ public class BotCommandMixer : MonoBehaviour
     {
         if (!AwaitingStart) return;
         startPressed = true;
+
+        // The robot is placed at the start with its arm pointing at the finish,
+        // so at this instant the true heading is known. Measuring it beats
+        // hardcoding a yaw: it survives re-taping the tag, a different mount,
+        // and whichever axis convention the marker provider happens to use.
+        if (calibrateHeadingOnStart && tagTracker != null)
+        {
+            // CourseForward is start-to-finish by construction, so it already
+            // means "point the arm down the course".
+            Vector3 aim = run != null ? run.CourseForward : tagTracker.BotForward;
+
+            tagTracker.CalibrateForwardTo(aim);
+        }
+
         Debug.LogFormat("[Bot] START pressed in {0} - joystick live", CurrentPhase);
     }
 

@@ -109,9 +109,13 @@ public static class SessionFlowSetup
             recentRt.anchorMin = fieldRt.anchorMin;
             recentRt.anchorMax = fieldRt.anchorMax;
             recentRt.pivot     = fieldRt.pivot;
+            // ABOVE the field, not below. Below is where Connect lives, and the
+            // first attempt at "relative to the field" simply swapped which
+            // control was covered - the space between the title and the field
+            // is the only genuinely free row on this panel.
             recentRt.anchoredPosition =
-                fieldRt.anchoredPosition + new Vector2(0f, -(fieldRt.sizeDelta.y + 16f));
-            recentRt.sizeDelta = new Vector2(fieldRt.sizeDelta.x, 60f);
+                fieldRt.anchoredPosition + new Vector2(0f, fieldRt.sizeDelta.y + 24f);
+            recentRt.sizeDelta = new Vector2(fieldRt.sizeDelta.x, 52f);
         }
         else
         {

@@ -8174,6 +8174,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostBot
   moveAction: {fileID: -7185608374540891126, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  turnAction: {fileID: -840566750555089330, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  mecanum: 1
   linearSpeed: 0.6
   angularSpeed: 2
   deadzone: 0.15

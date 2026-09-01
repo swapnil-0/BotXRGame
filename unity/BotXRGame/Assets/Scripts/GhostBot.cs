@@ -62,6 +62,15 @@ public class GhostBot : MonoBehaviour
 
     /// <summary>Strafe velocity, m/s, ship-relative right. Mecanum only.</summary>
     public float LinearY { get; private set; }
+
+    /// <summary>
+    /// Left-stick state for the HUD: unwired, disabled, or its live value.
+    ///
+    /// All three produce 0.000 downstream, so the number alone cannot tell them
+    /// apart - which is exactly how a never-enabled action passed for a centred
+    /// stick.
+    /// </summary>
+    public string TurnStatus { get; private set; } = "L: -";
     /// <summary>Commanded yaw rate, rad/s. Positive = left, matching ROS.</summary>
     public float AngularZ { get; private set; }
     /// <summary>Set true by the arm during a swing to hold the chassis still.</summary>
@@ -161,6 +170,12 @@ public class GhostBot : MonoBehaviour
     {
         if (moveAction != null && moveAction.action != null)
             moveAction.action.Enable();
+
+        // A DISABLED action reads exactly zero - identical to a centred stick,
+        // and to an unwired reference. Three very different faults, one
+        // symptom. Missing this line made the left stick look bound and dead.
+        if (turnAction != null && turnAction.action != null)
+            turnAction.action.Enable();
     }
 
     /// <summary>Called by tornadoes each frame. World space, metres/second.</summary>
@@ -225,8 +240,17 @@ public class GhostBot : MonoBehaviour
 
         // Left stick: yaw only. Its Y is ignored, exactly as on the real robot.
         Vector2 turn = Vector2.zero;
-        if (turnAction != null && turnAction.action != null)
+
+        if (turnAction == null || turnAction.action == null)
+            TurnStatus = "L: UNWIRED";
+        else if (!turnAction.action.enabled)
+            TurnStatus = "L: DISABLED";
+        else
+        {
             turn = turnAction.action.ReadValue<Vector2>();
+            TurnStatus = string.Format("L: {0:F2}", turn.x);
+        }
+
         if (Mathf.Abs(turn.x) < deadzone) turn.x = 0f;
 
         // Same mapping the real robot uses, so the ghost and the chassis

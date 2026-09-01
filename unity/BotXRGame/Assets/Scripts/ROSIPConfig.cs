@@ -129,6 +129,34 @@ public class ROSIPConfig : MonoBehaviour
              "for a build with no menu, where this should appear immediately.")]
     public bool waitForModeSelection = true;
 
+    private bool warnedBothPanels;
+
+    /// <summary>
+    /// The connect panel and the HUD are mutually exclusive - the HUD only ever
+    /// appears after Connect or Skip, both of which hide the panel.
+    ///
+    /// Enforced every frame rather than trusted, because the panel was seen
+    /// floating over a live run: both hide paths are correct on inspection, so
+    /// something else re-enables it, and reading the code did not reveal what.
+    /// Enforcing the invariant fixes the symptom whatever the cause; the log
+    /// line then names the culprit if it happens again.
+    /// </summary>
+    void LateUpdate()
+    {
+        if (ipInputPanel == null || hudPanel == null) return;
+        if (!hudPanel.activeSelf || !ipInputPanel.activeSelf) return;
+
+        ipInputPanel.SetActive(false);
+
+        if (!warnedBothPanels)
+        {
+            warnedBothPanels = true;
+            Debug.LogWarning("[IP] connect panel was active while the HUD was up - " +
+                             "re-hidden. Something re-enabled IPInputPanel after " +
+                             "Connect/Skip.");
+        }
+    }
+
     /// <summary>Hide everything; the mode menu owns the screen until it calls back.</summary>
     public void HideUntilModeChosen()
     {

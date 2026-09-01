@@ -189,8 +189,10 @@ public class ScoreBoard : MonoBehaviour
 
         sb.AppendFormat("ship {0:F2},{1:F2}  ext {2:F2}  [{3}] x{4}\n",
             c.x, c.z, ext, ship.gameObject.name, shipCount);
-        sb.AppendFormat("hdg {0:F0}  cmd {1:F3}  applied {2:F3} rad/s\n",
-            hdg, ship.CommandedAngularZ, ship.AppliedAngularRate);
+        sb.AppendFormat("hdg {0:F0}  cmd {1:F3}  applied {2:F3} rad/s   {3}\n",
+            hdg, ship.CommandedAngularZ, ship.AppliedAngularRate, ship.TurnStatus);
+
+        sb.AppendFormat("strafe {0:F2}\n", ship.LinearY);
 
         // Tag line, only in AprilTag mode - it is noise otherwise. Prints the
         // detected pose, which is what tells you whether the marker is actually

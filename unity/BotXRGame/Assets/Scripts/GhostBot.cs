@@ -21,6 +21,17 @@ public class GhostBot : MonoBehaviour
     [Tooltip("Same action RobotController uses. Vector2, thumbstick.")]
     public InputActionReference moveAction;
 
+    [Tooltip("LEFT stick. X spins the ship; Y is ignored. Matches the real " +
+             "robot, where mecanum needs a second stick because the right " +
+             "stick's X is already strafe.")]
+    public InputActionReference turnAction;
+
+    [Tooltip("Right stick X strafes instead of turning.\n\n" +
+             "ON to match the mecanum chassis. OFF restores the original " +
+             "single-stick differential feel, which is what the virtual game " +
+             "shipped with before the real base turned out to be mecanum.")]
+    public bool mecanum = true;
+
     [Header("Motion")]
     public float linearSpeed = 0.6f;      // m/s, matches bot_sim max_linear
     public float angularSpeed = 2.0f;     // rad/s, matches bot_sim max_angular
@@ -48,6 +59,9 @@ public class GhostBot : MonoBehaviour
     // --- read by the HUD, the arm, and any ROS bridge -------------------
     /// <summary>Commanded forward velocity, m/s. Same value a Twist would carry.</summary>
     public float LinearX { get; private set; }
+
+    /// <summary>Strafe velocity, m/s, ship-relative right. Mecanum only.</summary>
+    public float LinearY { get; private set; }
     /// <summary>Commanded yaw rate, rad/s. Positive = left, matching ROS.</summary>
     public float AngularZ { get; private set; }
     /// <summary>Set true by the arm during a swing to hold the chassis still.</summary>
@@ -88,7 +102,7 @@ public class GhostBot : MonoBehaviour
     public float axisDeadzone = 0.25f;
 
     private Vector3 externalAccum;
-    private float linearVel, angularVel;   // SmoothDamp state
+    private float linearVel, angularVel, lateralVel;   // SmoothDamp state
 
     // --- visual centre --------------------------------------------------
     // The ship model is an imported asset whose mesh pivot is nowhere near
@@ -165,8 +179,10 @@ public class GhostBot : MonoBehaviour
     public void ResetMotion()
     {
         LinearX = 0f;
+        LinearY = 0f;
         AngularZ = 0f;
         linearVel = 0f;
+        lateralVel = 0f;
         angularVel = 0f;
         externalAccum = Vector3.zero;
         ExternalVelocity = Vector3.zero;
@@ -207,14 +223,31 @@ public class GhostBot : MonoBehaviour
         if (Mathf.Abs(stick.x) < axisDeadzone * Mathf.Abs(stick.y)) stick.x = 0f;
         if (Mathf.Abs(stick.y) < axisDeadzone * Mathf.Abs(stick.x)) stick.y = 0f;
 
-        // Same mapping RobotController uses, so the ghost and the real robot
-        // respond identically to the same stick position.
+        // Left stick: yaw only. Its Y is ignored, exactly as on the real robot.
+        Vector2 turn = Vector2.zero;
+        if (turnAction != null && turnAction.action != null)
+            turn = turnAction.action.ReadValue<Vector2>();
+        if (Mathf.Abs(turn.x) < deadzone) turn.x = 0f;
+
+        // Same mapping the real robot uses, so the ghost and the chassis
+        // respond identically to the same stick position. That equivalence is
+        // the entire reason this class exists - if the virtual game taught a
+        // different control scheme, practising on it would be worse than
+        // useless.
         float targetLinear = stick.y * linearSpeed;
-        float targetAngular = -stick.x * angularSpeed;
+
+        // Mecanum: right stick X strafes rather than turning. Yaw comes from
+        // the left stick alone, so the vortex can drag the ship sideways
+        // without spinning it.
+        float targetLateral = mecanum ? stick.x * linearSpeed : 0f;
+        float targetAngular = mecanum
+            ? -turn.x * angularSpeed
+            : (-stick.x - turn.x) * angularSpeed;
 
         if (MotionLocked)
         {
             targetLinear = 0f;
+            targetLateral = 0f;
             targetAngular = 0f;
         }
 
@@ -222,6 +255,10 @@ public class GhostBot : MonoBehaviour
         LinearX = accelerationTime > 0.001f
             ? Mathf.SmoothDamp(LinearX, targetLinear, ref linearVel, accelerationTime)
             : targetLinear;
+
+        LinearY = accelerationTime > 0.001f
+            ? Mathf.SmoothDamp(LinearY, targetLateral, ref lateralVel, accelerationTime)
+            : targetLateral;
 
         AngularZ = turnAccelerationTime > 0.001f
             ? Mathf.SmoothDamp(AngularZ, targetAngular, ref angularVel, turnAccelerationTime)
@@ -246,6 +283,11 @@ public class GhostBot : MonoBehaviour
             LinearX = 0f;
             linearVel = 0f;
         }
+        if (Mathf.Abs(targetLateral) < 1e-4f && Mathf.Abs(LinearY) < linearDeadband)
+        {
+            LinearY = 0f;
+            lateralVel = 0f;
+        }
 
         CommandedAngularZ = targetAngular;
         AppliedAngularRate = AngularZ;
@@ -255,7 +297,10 @@ public class GhostBot : MonoBehaviour
         if (!PoseDrivenExternally)
         {
             transform.Rotate(0f, -AngularZ * dt * Mathf.Rad2Deg, 0f);
-            transform.Translate(0f, 0f, LinearX * dt, Space.Self);
+
+            // X is the ship's own right. Translating in Space.Self means the
+            // strafe follows the heading, which is what a mecanum base does.
+            transform.Translate(LinearY * dt, 0f, LinearX * dt, Space.Self);
         }
 
         // External drift applies even while the arm has the wheels locked:

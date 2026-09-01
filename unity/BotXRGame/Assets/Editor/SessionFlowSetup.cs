@@ -571,8 +571,16 @@ public static class SessionFlowSetup
 
         var done = new List<string>();
 
-        var bot = Object.FindAnyObjectByType<GhostBot>();
-        if (bot != null) { Overwrite(bot, "moveAction", move); done.Add("GhostBot.moveAction"); }
+        // Every GhostBot, not just one. There are stand-ins in the scene as
+        // well as the player's ship, and a half-bound set would give the
+        // virtual game two different control schemes depending on which object
+        // the mode happened to pick.
+        foreach (var bot in Object.FindObjectsByType<GhostBot>(FindObjectsInactive.Include))
+        {
+            Overwrite(bot, "moveAction", move);
+            if (turn != null) Overwrite(bot, "turnAction", turn);
+        }
+        done.Add("GhostBot: right stick drives/strafes, left stick spins");
 
         var robot = Object.FindAnyObjectByType<RobotController>();
         if (robot != null)

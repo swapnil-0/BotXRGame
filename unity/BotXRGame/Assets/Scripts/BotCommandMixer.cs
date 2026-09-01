@@ -45,7 +45,8 @@ public class BotCommandMixer : MonoBehaviour
              "with the button - unwired, mispositioned, unlit shader - traps " +
              "the session with a robot that will not move. A button press " +
              "cannot be mispositioned.\n\n" +
-             "A is free in ARMED: the arm is only useful once running.")]
+             "Bound to B rather than A: A is SWEEP, used constantly in play, " +
+             "so starting with it would swing the arm every single run.")]
     public InputActionReference startAction;
 
     [Range(0.1f, 0.9f)] public float pressThreshold = 0.5f;

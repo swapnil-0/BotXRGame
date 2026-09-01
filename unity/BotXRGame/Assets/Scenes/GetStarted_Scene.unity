@@ -6096,6 +6096,8 @@ MonoBehaviour:
   run: {fileID: 861330930}
   placer: {fileID: 861330929}
   moveAction: {fileID: -7185608374540891126, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  turnAction: {fileID: -840566750555089330, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  manualTurnRate: 1.2
   startAction: {fileID: -6014808934006281698, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   pressThreshold: 0.5
   arriveRadius: 0.15
@@ -7836,6 +7838,8 @@ MonoBehaviour:
   arm: {fileID: 1320862976}
   display: {fileID: 57487050}
   moveAction: {fileID: -7185608374540891126, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  turnAction: {fileID: -840566750555089330, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
+  mecanum: 1
   linearSpeed: 0.15
   angularSpeed: 0.8
   deadzone: 0.15

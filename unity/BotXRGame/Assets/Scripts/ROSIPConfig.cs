@@ -111,9 +111,12 @@ public class ROSIPConfig : MonoBehaviour
         recentIndex = (recentIndex + 1) % recent.Count;
         if (ipInputField != null) ipInputField.text = recent[recentIndex];
 
+        // Show the ADDRESS, not just an index. "recent 2/5" tells you the
+        // button worked but not what it did, and the whole point is to avoid
+        // reading a long number off a separate field.
         if (recentLabel != null)
-            recentLabel.text = string.Format("recent {0}/{1}",
-                recentIndex + 1, recent.Count);
+            recentLabel.text = string.Format("{0}   ({1}/{2})",
+                recent[recentIndex], recentIndex + 1, recent.Count);
     }
 
     private const string PREF_IP = "ROS_IP";

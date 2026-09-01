@@ -97,10 +97,29 @@ public static class SessionFlowSetup
         recentBtn.targetGraphic = recentImg;
 
         var recentRt = recentGo.GetComponent<RectTransform>();
-        recentRt.anchorMin = recentRt.anchorMax = new Vector2(0.5f, 0.5f);
-        recentRt.pivot = new Vector2(0.5f, 0.5f);
-        recentRt.anchoredPosition = new Vector2(0f, -190f);
-        recentRt.sizeDelta = new Vector2(360f, 60f);
+
+        // Positioned RELATIVE to the IP field rather than at a fixed offset.
+        // The hardcoded (0,-190) landed on top of another control, and a
+        // transparent-ish button that overlaps something else steals its
+        // raycast - so the covered control stops responding too, which reads
+        // as two unrelated bugs.
+        var fieldRt = GetFieldRect(ipConfig, "ipInputField");
+        if (fieldRt != null)
+        {
+            recentRt.anchorMin = fieldRt.anchorMin;
+            recentRt.anchorMax = fieldRt.anchorMax;
+            recentRt.pivot     = fieldRt.pivot;
+            recentRt.anchoredPosition =
+                fieldRt.anchoredPosition + new Vector2(0f, -(fieldRt.sizeDelta.y + 16f));
+            recentRt.sizeDelta = new Vector2(fieldRt.sizeDelta.x, 60f);
+        }
+        else
+        {
+            recentRt.anchorMin = recentRt.anchorMax = new Vector2(0.5f, 0.5f);
+            recentRt.pivot = new Vector2(0.5f, 0.5f);
+            recentRt.anchoredPosition = new Vector2(0f, -190f);
+            recentRt.sizeDelta = new Vector2(360f, 60f);
+        }
 
         var recentTxt = MakeText(recentGo.transform, "Label", 26,
                                  TMPro.TextAlignmentOptions.Center,
@@ -108,12 +127,14 @@ public static class SessionFlowSetup
         recentTxt.text = "Recent IPs";
         Stretch(recentTxt.GetComponent<RectTransform>());
 
-        // recentLabel left unassigned on purpose: the only spare text on that
-        // panel is ipStatusText, and writing the recent index into it would
-        // overwrite the connection errors it exists to show.
+        // The button's OWN label is recentLabel, so pressing it shows the
+        // address it just loaded. Previously the label was static and the only
+        // change was in the input field - press it while looking anywhere else
+        // and the button appeared dead.
         Wire(ipConfig, new Dictionary<string, Object>
         {
             { "recentButton", recentBtn },
+            { "recentLabel",  recentTxt },
         });
         done.Add("Recent IP button on the connect screen");
 
@@ -614,7 +635,10 @@ public static class SessionFlowSetup
             // but ARMED sends zero by design, so if the button fails to render
             // for any reason the robot cannot be made to move at all. A button
             // press has no position, no material and no raycast to get wrong.
-            Overwrite(botMixer, "startAction", swing);
+            // B, not A. A is SWEEP - the action used constantly in play - so
+            // overloading it means an arm swing every time you start. B is
+            // STOW, which is rarely wanted mid-run.
+            Overwrite(botMixer, "startAction", kick);
 
             if (turn != null)
             {
@@ -856,6 +880,16 @@ public static class SessionFlowSetup
         r.anchorMax = Vector2.one;
         r.offsetMin = Vector2.zero;
         r.offsetMax = Vector2.zero;
+    }
+
+    /// <summary>RectTransform of a serialized UI field, or null.</summary>
+    private static RectTransform GetFieldRect(Object target, string fieldName)
+    {
+        var f = target.GetType().GetField(fieldName);
+        if (f == null) return null;
+
+        var value = f.GetValue(target) as Component;
+        return value != null ? value.GetComponent<RectTransform>() : null;
     }
 
     private static TMPro.TextMeshProUGUI MakeText(

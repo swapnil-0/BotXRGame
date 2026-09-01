@@ -1619,7 +1619,7 @@ MonoBehaviour:
   normalAxis: 0
   toppleAngle: 45
   lostAfterSeconds: 1.5
-  tagOffsetFromCentre: {x: 0, y: 0, z: 0}
+  tagOffsetFromCentre: {x: 0, y: 0, z: 0.115}
   projectCentreToFloor: 1
   floorY: 0
   tagYawOffsetDegrees: 0
@@ -6100,6 +6100,7 @@ MonoBehaviour:
   manualTurnRate: 1.2
   startAction: {fileID: -9129376883668913906, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   pressThreshold: 0.5
+  calibrateHeadingOnStart: 1
   arriveRadius: 0.15
   approachSpeed: 0.12
   turnFirstAngle: 35

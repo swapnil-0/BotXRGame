@@ -109,3 +109,7 @@ InitTestScene*.unity*
 # Scratch screenshots for debugging - anything meant to be kept goes in
 # docs/images instead, which stays tracked.
 /captures/
+
+# Python bytecode
+__pycache__/
+*.pyc

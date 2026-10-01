@@ -113,3 +113,8 @@ InitTestScene*.unity*
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Cup Detect: downloaded weights, test photos and their annotated output
+/yolo*.pt
+/cups*.jpg
+/*_detected.jpg

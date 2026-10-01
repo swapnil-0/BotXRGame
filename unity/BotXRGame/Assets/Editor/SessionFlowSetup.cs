@@ -15,7 +15,7 @@ using Object = UnityEngine.Object;
 /// and wires empty references - it does not overwrite values that are already
 /// set, for the same reason.
 /// </summary>
-public static class SessionFlowSetup
+public static partial class SessionFlowSetup
 {
     [MenuItem("Tools/BotXRGame/Wire Session Flow", false, 40)]
     public static void WireSessionFlow()
@@ -64,28 +64,38 @@ public static class SessionFlowSetup
         bg.color = new Color(0.05f, 0.07f, 0.10f, 0.88f);
         Stretch(bgGo.GetComponent<RectTransform>());
 
-        var title = MakeText(modePanel.transform, "Title", 56,
+        // Four buttons on an 800x600 canvas (y runs -300..300). The old 110-unit
+        // spacing put a fourth button at -340, off the bottom edge - so the
+        // whole stack is tightened to 82-unit rows of 72-unit buttons.
+        var title = MakeText(modePanel.transform, "Title", 50,
                              TMPro.TextAlignmentOptions.Center,
-                             new Vector2(0f, 170f), new Vector2(700f, 90f));
-        var help = MakeText(modePanel.transform, "Help", 26,
+                             new Vector2(0f, 215f), new Vector2(700f, 70f));
+        var help = MakeText(modePanel.transform, "Help", 20,
                             TMPro.TextAlignmentOptions.Center,
-                            new Vector2(0f, 90f), new Vector2(760f, 90f));
+                            new Vector2(0f, 130f), new Vector2(760f, 100f));
         help.color = new Color(0.70f, 0.78f, 0.88f);
 
         Button virtualBtn = MakeButton(modePanel.transform, "VirtualBotButton",
                                        "Virtual Bot",
-                                       new Vector2(0f, -10f),
+                                       new Vector2(0f, 30f),
                                        new Color(0.16f, 0.42f, 0.28f));
         Button tagBtn = MakeButton(modePanel.transform, "AprilTagButton",
                                    "AprilTag (real bot)",
-                                   new Vector2(0f, -120f),
+                                   new Vector2(0f, -52f),
                                    new Color(0.18f, 0.32f, 0.52f));
         Button linkBtn = MakeButton(modePanel.transform, "LinkTestButton",
                                     "Link Test (ROS only)",
-                                    new Vector2(0f, -230f),
+                                    new Vector2(0f, -134f),
                                     new Color(0.5f, 0.35f, 0.15f));
+        Button cupBtn = MakeButton(modePanel.transform, "CupDetectButton",
+                                   "Cup Detect (camera only)",
+                                   new Vector2(0f, -216f),
+                                   new Color(0.45f, 0.18f, 0.22f));
 
-        done.Add("ModePanel with two buttons");
+        foreach (var b in new[] { virtualBtn, tagBtn, linkBtn, cupBtn })
+            b.GetComponent<RectTransform>().sizeDelta = new Vector2(520f, 72f);
+
+        done.Add("ModePanel with four buttons");
 
         // ------------------------------------------- recent-address button
         // Typing an IP on an XR keyboard is slow, and one wrong digit fails
@@ -151,6 +161,7 @@ public static class SessionFlowSetup
             { "virtualBotButton", virtualBtn },
             { "aprilTagButton",   tagBtn },
             { "linkTestButton",   linkBtn },
+            { "cupDetectButton",  cupBtn },
             { "titleText",        title },
             { "helpText",         help },
             { "ipConfig",         ipConfig },

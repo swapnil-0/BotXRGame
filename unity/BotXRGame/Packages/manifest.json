@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.unity.ai.inference": "2.6.1",
     "com.google.xr.extensions": "https://github.com/android/android-xr-unity-package.git",
     "com.unity.cinemachine": "3.1.6",
     "com.unity.inputsystem": "1.19.0",

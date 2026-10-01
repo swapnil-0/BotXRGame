@@ -31,6 +31,10 @@ public class ModeSelectMenu : MonoBehaviour
              "robot. First thing to try when the robot does not respond.")]
     public Button linkTestButton;
 
+    [Tooltip("Vision test - the headset camera finds and tracks cups. No " +
+             "robot, no ROS, no tags.")]
+    public Button cupDetectButton;
+
     [Header("Optional labels")]
     public TMPro.TextMeshProUGUI titleText;
     public TMPro.TextMeshProUGUI helpText;
@@ -87,7 +91,8 @@ public class ModeSelectMenu : MonoBehaviour
                 : "Point and pull the trigger to choose\n" +
                   "Virtual Bot - fly the ship, no robot needed\n" +
                   "AprilTag - drive the real robot\n" +
-                  "Link Test - stick straight to the robot, nothing else";
+                  "Link Test - stick straight to the robot, nothing else\n" +
+                  "Cup Detect - camera finds and tracks cups, no robot";
         }
 
         if (virtualBotButton != null)
@@ -98,6 +103,9 @@ public class ModeSelectMenu : MonoBehaviour
 
         if (linkTestButton != null)
             linkTestButton.onClick.AddListener(() => Choose(ShipSource.LinkTest));
+
+        if (cupDetectButton != null)
+            cupDetectButton.onClick.AddListener(() => Choose(ShipSource.CupDetect));
 
         if (virtualBotButton == null && aprilTagButton == null)
         {
@@ -143,7 +151,11 @@ public class ModeSelectMenu : MonoBehaviour
 
         if (modePanel != null) modePanel.SetActive(false);
 
-        bool skip = source == ShipSource.VirtualBot && skipIpConfigForVirtualBot;
+        // Cup Detect never talks to a robot, so the connect screen would be a
+        // question with no right answer - and pressing Connect by habit would
+        // start a ROS connection retry loop in the background of a vision test.
+        bool skip = (source == ShipSource.VirtualBot && skipIpConfigForVirtualBot)
+                 || source == ShipSource.CupDetect;
 
         if (ipConfig == null)
         {

@@ -29,6 +29,17 @@ public enum ShipSource
     /// a dead link.
     /// </summary>
     LinkTest,
+
+    /// <summary>
+    /// Standalone test of on-headset vision: the passthrough camera feeds a
+    /// detector, and every cup it sees is placed on the floor and tracked.
+    ///
+    /// No robot, no ROS, no AprilTags, no arena, no ship. It answers one
+    /// question - can the headset find and follow cups on its own - without
+    /// anything else in the scene able to make the answer look better or worse
+    /// than it is.
+    /// </summary>
+    CupDetect,
 }
 
 /// <summary>
@@ -59,6 +70,8 @@ public static class GameMode
     public static bool IsAprilTag => Source == ShipSource.AprilTag;
 
     public static bool IsLinkTest => Source == ShipSource.LinkTest;
+
+    public static bool IsCupDetect => Source == ShipSource.CupDetect;
 
     /// <summary>True when the arena, tags and tornado should all stand down.</summary>
     public static bool IsBareLink => Source == ShipSource.LinkTest;

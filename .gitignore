@@ -116,5 +116,16 @@ __pycache__/
 
 # Cup Detect: downloaded weights, test photos and their annotated output
 /yolo*.pt
+/yolo*.onnx
 /cups*.jpg
 /*_detected.jpg
+
+# SNPE conversion outputs (tools/npu/convert_snpe.sh)
+/tools/npu/build/
+
+# Qualcomm SNPE runtime + NPU probe artifacts, staged by tools/npu/build_plugin.sh
+# (SDK binaries: not redistributed in this repo; rebuild after a fresh clone)
+/unity/BotXRGame/Assets/Plugins/Android/libs/
+/unity/BotXRGame/Assets/Plugins/Android/libs.meta
+/unity/BotXRGame/Assets/StreamingAssets/CupNpu/
+/unity/BotXRGame/Assets/StreamingAssets/CupNpu.meta

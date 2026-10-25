@@ -58,6 +58,12 @@ public class CupTracker : MonoBehaviour
              "a grazing angle, where a one-pixel error is tens of centimetres.")]
     public float maxRange = 5f;
 
+    [Tooltip("Width a detection must have on the floor, metres, to be a cup. " +
+             "A solo cup is about 0.1 m. Mostly for colour blobs: a red bin, a " +
+             "dustpan or a red patch across the room is red but not cup-sized.")]
+    public float minCupWidth = 0.05f;
+    public float maxCupWidth = 0.18f;
+
     [Header("Tracking")]
     [Tooltip("A detection within this many metres of a cup is that cup.")]
     public float gateRadius = 0.30f;
@@ -81,7 +87,24 @@ public class CupTracker : MonoBehaviour
     public Color confirmedColour = new Color(0.2f, 1f, 0.4f, 0.75f);
     public Color tentativeColour = new Color(1f, 0.85f, 0.2f, 0.55f);
     public float markerRadius = 0.05f;
-    public float markerHeight = 0.12f;
+
+    [Tooltip("Length of the orientation arrow, metres. It runs from the cup's " +
+             "base toward its mouth: up for an upright cup, down for an " +
+             "upside-down one, along the floor for one on its side.")]
+    public float arrowLength = 0.32f;
+
+    [Tooltip("Detections in a row that must agree before a cup's pose changes, " +
+             "so one odd frame does not flip the arrow.")]
+    public int poseConfirmFrames = 2;
+
+    [Tooltip("Draw markers for unconfirmed cups too. Off: a one-frame false " +
+             "detection never appears, which on the first headset run was " +
+             "hundreds of flickering markers.")]
+    public bool showTentative = false;
+
+    [Tooltip("Label text height per metre of distance, so a label reads the " +
+             "same size near and far instead of filling the view up close.")]
+    public float labelSizePerMetre = 0.22f;
 
     // ------------------------------------------------------------------ tracks
 
@@ -94,8 +117,17 @@ public class CupTracker : MonoBehaviour
         public float LastSeen;
         public float Score;
         public bool Confirmed;
+        public CupDetector.CupPose Pose;
+        public CupDetector.CupPose PendingPose;
+        public int PendingCount;
+
+        /// <summary>Tipped cups: unit direction on the floor from base to mouth.</summary>
+        public Vector3 FloorDir;
+
         public GameObject Marker;
         public Renderer MarkerRenderer;
+        public LineRenderer Arrow;
+        public Material ArrowMat;
         public TMPro.TextMeshPro Label;
     }
 
@@ -104,6 +136,13 @@ public class CupTracker : MonoBehaviour
 
     /// <summary>Detections in the last result that could not be placed.</summary>
     public int UnplacedLast { get; private set; }
+
+    /// <summary>Detections in the last result rejected as the wrong size for a cup.</summary>
+    public int WrongSizeLast { get; private set; }
+
+    /// <summary>Where the floor height came from: "AR plane", "controller height", or "default".</summary>
+    public string FloorSource { get; private set; } = "default";
+
     public string Status { get; private set; } = "tracker: waiting";
 
     private int lastResultId = -1;
@@ -111,6 +150,8 @@ public class CupTracker : MonoBehaviour
     private readonly List<ARRaycastHit> hits = new List<ARRaycastHit>();
     private readonly List<Vector3> placed = new List<Vector3>();
     private readonly List<float> placedScore = new List<float>();
+    private readonly List<CupDetector.CupPose> placedPose = new List<CupDetector.CupPose>();
+    private readonly List<Vector3> placedDir = new List<Vector3>();
 
     // -------------------------------------------------------------- per frame
 
@@ -124,23 +165,24 @@ public class CupTracker : MonoBehaviour
         Associate();
         RefreshMarkers();
 
-        Status = string.Format("tracker: {0} cups ({1} confirmed)  unplaced {2}  floor {3}{4:F2}  lat {5:F0}ms",
-            Tracks.Count, ConfirmedCount, UnplacedLast,
-            FloorCalibrated ? "" : "~", floorY, latencyMs);
+        Status = string.Format("tracker: {0} cups ({1} confirmed)  unplaced {2}  wrong-size {3}  floor {4:F2} ({5})  lat {6:F0}ms",
+            Tracks.Count, ConfirmedCount, UnplacedLast, WrongSizeLast,
+            floorY, FloorSource, latencyMs);
     }
 
     /// <summary>Set the fallback floor height, e.g. from a trigger pull.</summary>
-    public void SetFloor(float y)
+    public void SetFloor(float y, string source)
     {
         floorY = y;
         FloorCalibrated = true;
-        Debug.LogFormat("[Cups] floor set to {0:F3}", y);
+        FloorSource = source;
+        Debug.LogFormat("[Cups] floor set to {0:F3} from {1}", y, source);
     }
 
     /// <summary>Forget every cup - for re-laying the arena.</summary>
     public void ClearAll()
     {
-        foreach (var t in Tracks) if (t.Marker != null) Destroy(t.Marker);
+        foreach (var t in Tracks) DestroyMarker(t);
         Tracks.Clear();
         ConfirmedCount = 0;
     }
@@ -151,7 +193,12 @@ public class CupTracker : MonoBehaviour
     {
         placed.Clear();
         placedScore.Clear();
+        placedPose.Clear();
+        placedDir.Clear();
         UnplacedLast = 0;
+        WrongSizeLast = 0;
+
+        cam.GetStreamIntrinsics(out float fx, out _, out _, out _);
 
         foreach (var det in detector.Latest)
         {
@@ -159,21 +206,49 @@ public class CupTracker : MonoBehaviour
             float u = det.box.center.x;
             float v = det.box.yMax;
 
-            if (TryPixelToFloor(u, v, det.frameTime, out Vector3 p))
+            if (!TryPixelToFloor(u, v, det.frameTime, out Vector3 p, out float dist))
             {
-                placed.Add(p);
-                placedScore.Add(det.score);
+                UnplacedLast++;
+                continue;
             }
-            else UnplacedLast++;
+
+            // Physical width from pixel width and distance. Skipped for boxes
+            // cut off by the image edge, whose width is not the cup's.
+            bool clipped = det.box.xMin <= 0.01f || det.box.xMax >= 0.99f;
+            float widthM = det.box.width * cam.Width / Mathf.Max(1f, fx) * dist;
+            if (!clipped && (widthM < minCupWidth || widthM > maxCupWidth))
+            {
+                WrongSizeLast++;
+                continue;
+            }
+
+            Vector3 dir = Vector3.zero;
+            if (det.pose == CupDetector.CupPose.Tipped &&
+                TryPixelToFloor(det.baseUv.x, det.baseUv.y, det.frameTime, out Vector3 b) &&
+                TryPixelToFloor(det.mouthUv.x, det.mouthUv.y, det.frameTime, out Vector3 m))
+            {
+                dir = m - b;
+                dir.y = 0f;
+                dir = dir.sqrMagnitude > 1e-6f ? dir.normalized : Vector3.zero;
+            }
+
+            placed.Add(p);
+            placedScore.Add(det.score);
+            placedPose.Add(det.pose);
+            placedDir.Add(dir);
         }
     }
 
     /// <summary>
     /// Normalised image point (y down) to a world point on the floor.
     /// </summary>
-    public bool TryPixelToFloor(float u, float v, float frameTime, out Vector3 world)
+    public bool TryPixelToFloor(float u, float v, float frameTime, out Vector3 world) =>
+        TryPixelToFloor(u, v, frameTime, out world, out _);
+
+    private bool TryPixelToFloor(float u, float v, float frameTime, out Vector3 world, out float distance)
     {
         world = Vector3.zero;
+        distance = 0f;
         if (!TryCameraPose(frameTime - latencyMs * 0.001f, out Vector3 camPos, out Quaternion camRot))
             return false;
 
@@ -195,6 +270,7 @@ public class CupTracker : MonoBehaviour
                 if (Vector3.Dot(h.pose.up, Vector3.up) < 0.85f) continue;
                 if (h.distance > maxRange) break;
                 world = h.pose.position;
+                distance = h.distance;
                 return true;
             }
         }
@@ -205,6 +281,7 @@ public class CupTracker : MonoBehaviour
         if (t <= 0f || t > maxRange) return false;
 
         world = ray.origin + ray.direction * t;
+        distance = t;
         return true;
     }
 
@@ -273,7 +350,6 @@ public class CupTracker : MonoBehaviour
             {
                 best = new Track { Id = nextId++, Position = p };
                 Tracks.Add(best);
-                Debug.LogFormat("[Cups] new cup #{0} at {1:F2},{2:F2}", best.Id, p.x, p.z);
             }
             else
             {
@@ -284,7 +360,15 @@ public class CupTracker : MonoBehaviour
             best.InViewMisses = 0;
             best.LastSeen = now;
             best.Score = placedScore[i];
-            if (!best.Confirmed && best.Hits >= confirmHits) best.Confirmed = true;
+            if (!best.Confirmed && best.Hits >= confirmHits)
+            {
+                // Logged at confirmation, not creation: one-frame false hits
+                // would otherwise flood the log (hundreds on the first run).
+                best.Confirmed = true;
+                Debug.LogFormat("[Cups] cup #{0} confirmed at {1:F2},{2:F2}  {3}",
+                    best.Id, best.Position.x, best.Position.z, PoseName(best.Pose));
+            }
+            UpdatePose(best, placedPose[i], placedDir[i]);
             matched.Add(best);
         }
 
@@ -301,8 +385,9 @@ public class CupTracker : MonoBehaviour
             int limit = t.Confirmed ? dropAfterInViewMisses : 2;
             if (t.InViewMisses >= limit)
             {
-                Debug.LogFormat("[Cups] cup #{0} dropped after {1} in-view misses", t.Id, t.InViewMisses);
-                if (t.Marker != null) Destroy(t.Marker);
+                if (t.Confirmed)
+                    Debug.LogFormat("[Cups] cup #{0} dropped after {1} in-view misses", t.Id, t.InViewMisses);
+                DestroyMarker(t);
                 Tracks.RemoveAt(i);
             }
         }
@@ -336,10 +421,45 @@ public class CupTracker : MonoBehaviour
                 var lose = Tracks[j];
                 keep.Hits += lose.Hits;
                 keep.Confirmed |= lose.Confirmed;
-                if (lose.Marker != null) Destroy(lose.Marker);
+                if (keep.Pose == CupDetector.CupPose.Unknown) keep.Pose = lose.Pose;
+                DestroyMarker(lose);
                 Tracks.RemoveAt(j);
                 merged = true;
             }
+        }
+    }
+
+    /// <summary>
+    /// Change a cup's pose only after a few detections agree. Unknown readings
+    /// are ignored rather than counted: a cup seen at a bad angle keeps the last
+    /// pose it was sure of.
+    /// </summary>
+    private void UpdatePose(Track t, CupDetector.CupPose pose, Vector3 dir)
+    {
+        if (pose == CupDetector.CupPose.Tipped && dir != Vector3.zero)
+            t.FloorDir = t.FloorDir == Vector3.zero ? dir : Vector3.Slerp(t.FloorDir, dir, 0.4f).normalized;
+
+        if (pose == CupDetector.CupPose.Unknown) return;
+
+        if (pose == t.PendingPose) t.PendingCount++;
+        else { t.PendingPose = pose; t.PendingCount = 1; }
+
+        bool first = t.Pose == CupDetector.CupPose.Unknown;
+        if (pose != t.Pose && (first || t.PendingCount >= poseConfirmFrames))
+        {
+            t.Pose = pose;
+            if (t.Confirmed) Debug.LogFormat("[Cups] cup #{0} is {1}", t.Id, PoseName(pose));
+        }
+    }
+
+    public static string PoseName(CupDetector.CupPose p)
+    {
+        switch (p)
+        {
+            case CupDetector.CupPose.Upright: return "UPRIGHT";
+            case CupDetector.CupPose.UpsideDown: return "UPSIDE DOWN";
+            case CupDetector.CupPose.Tipped: return "TIPPED";
+            default: return "pose ?";
         }
     }
 
@@ -351,68 +471,161 @@ public class CupTracker : MonoBehaviour
 
     // ---------------------------------------------------------------- markers
 
+    private static readonly Color UprightText = new Color(0.3f, 1f, 0.45f);
+    private static readonly Color UpsideDownText = new Color(1f, 0.65f, 0.15f);
+    private static readonly Color TippedText = new Color(1f, 0.3f, 0.25f);
+
     private void RefreshMarkers()
     {
+        var c = Camera.main;
+
         foreach (var t in Tracks)
         {
             if (t.Marker == null) BuildMarker(t);
 
-            // Root sits on the floor at the cup, unscaled; the cylinder child is
-            // scaled, the label child is not.
-            float y = FloorAt(t.Position);
-            t.Marker.transform.position = new Vector3(t.Position.x, y, t.Position.z);
+            bool show = t.Confirmed || showTentative;
+            if (t.Marker.activeSelf != show) t.Marker.SetActive(show);
+            if (!show) continue;
 
-            float s = t.Confirmed ? 1f : 0.6f;
-            var body = t.MarkerRenderer != null ? t.MarkerRenderer.transform : null;
-            if (body != null)
+            // Root on the floor at the cup, unscaled; the disc child is scaled,
+            // the label is not.
+            float y = FloorAt(t.Position);
+            Vector3 foot = new Vector3(t.Position.x, y, t.Position.z);
+            t.Marker.transform.position = foot;
+
+            if (t.MarkerRenderer != null)
             {
-                body.localPosition = new Vector3(0f, markerHeight * 0.5f * s, 0f);
-                body.localScale = new Vector3(markerRadius * 2f * s, markerHeight * 0.5f * s, markerRadius * 2f * s);
+                float s = t.Confirmed ? 1f : 0.6f;
+                var disc = t.MarkerRenderer.transform;
+                disc.localPosition = new Vector3(0f, 0.003f, 0f);
+                disc.localScale = new Vector3(markerRadius * 2f * s, 0.002f, markerRadius * 2f * s);
+                if (t.MarkerRenderer.material != null)
+                    t.MarkerRenderer.material.color = t.Confirmed ? confirmedColour : tentativeColour;
             }
 
-            if (t.MarkerRenderer != null && t.MarkerRenderer.material != null)
-                t.MarkerRenderer.material.color = t.Confirmed ? confirmedColour : tentativeColour;
+            float labelHeight = DrawArrow(t, foot, c);
 
             if (t.Label != null)
             {
-                t.Label.text = t.Confirmed ? "#" + t.Id : "#" + t.Id + "?";
-                t.Label.transform.localPosition = new Vector3(0f, markerHeight + 0.08f, 0f);
-                var c = Camera.main;
+                t.Label.text = "#" + t.Id + " " + PoseName(t.Pose) + (t.Confirmed ? "" : "?");
+                t.Label.color = t.Pose == CupDetector.CupPose.Upright ? UprightText
+                              : t.Pose == CupDetector.CupPose.UpsideDown ? UpsideDownText
+                              : t.Pose == CupDetector.CupPose.Tipped ? TippedText
+                              : Color.white;
+                t.Label.transform.position = foot + Vector3.up * labelHeight;
                 if (c != null)
-                    t.Label.transform.rotation = Quaternion.LookRotation(
-                        t.Label.transform.position - c.transform.position, Vector3.up);
+                {
+                    Vector3 toLabel = t.Label.transform.position - c.transform.position;
+                    t.Label.transform.rotation = Quaternion.LookRotation(toLabel, Vector3.up);
+                    // Constant apparent size. 3.5 fixed filled the view at 1 m.
+                    t.Label.fontSize = Mathf.Clamp(labelSizePerMetre * toLabel.magnitude, 0.12f, 1.2f);
+                }
             }
         }
+    }
+
+    /// <summary>
+    /// The arrow runs from the cup's base toward its mouth, tapering like the
+    /// ship's command arrow, so the wide end is the base. Returns the height to
+    /// put the label at, clear of the arrow.
+    /// </summary>
+    private float DrawArrow(Track t, Vector3 foot, Camera c)
+    {
+        var lr = t.Arrow;
+        if (lr == null) return 0.2f;
+
+        Vector3 from, to;
+        switch (t.Pose)
+        {
+            case CupDetector.CupPose.Upright:
+                from = foot;
+                to = foot + Vector3.up * arrowLength;
+                break;
+
+            case CupDetector.CupPose.UpsideDown:
+                from = foot + Vector3.up * arrowLength;
+                to = foot + Vector3.up * 0.02f;
+                break;
+
+            case CupDetector.CupPose.Tipped:
+                Vector3 dir = t.FloorDir;
+                if (dir == Vector3.zero && c != null)
+                {
+                    // No floor direction yet: lie across the view rather than not at all.
+                    dir = c.transform.right;
+                    dir.y = 0f;
+                    dir.Normalize();
+                }
+                Vector3 axis = foot + Vector3.up * 0.05f;
+                from = axis - dir * (arrowLength * 0.25f);
+                to = axis + dir * (arrowLength * 0.75f);
+                break;
+
+            default:
+                lr.enabled = false;
+                return 0.15f;
+        }
+
+        lr.enabled = true;
+        lr.SetPosition(0, from);
+        lr.SetPosition(1, to);
+        float w = t.Confirmed ? 1f : 0.6f;
+        lr.startWidth = 0.035f * w;
+        lr.endWidth = 0.003f;
+        return Mathf.Max(from.y, to.y) - foot.y + 0.08f;
     }
 
     private float FloorAt(Vector3 p) => FloorCalibrated || !useArPlanes ? floorY : p.y;
 
     private void BuildMarker(Track t)
     {
-        // Unscaled root, so the label child is not stretched by the cylinder's
-        // non-uniform scale. Destroying the root removes both.
+        // Unscaled root, so the label child is not stretched by the disc's
+        // non-uniform scale. Destroying the root removes every child.
         var root = new GameObject("CupMarker_" + t.Id);
         root.transform.SetParent(transform, false);
 
-        var body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        body.name = "Body";
-        Destroy(body.GetComponent<Collider>());   // markers must not eat UI/controller rays
-        body.transform.SetParent(root.transform, false);
+        var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        disc.name = "Disc";
+        Destroy(disc.GetComponent<Collider>());   // markers must not eat UI/controller rays
+        disc.transform.SetParent(root.transform, false);
 
-        var r = body.GetComponent<Renderer>();
+        var r = disc.GetComponent<Renderer>();
         if (markerMaterial != null) r.material = new Material(markerMaterial);
         t.Marker = root;
         t.MarkerRenderer = r;
 
+        var arrowGo = new GameObject("Arrow");
+        arrowGo.transform.SetParent(root.transform, false);
+        var lr = arrowGo.AddComponent<LineRenderer>();
+        lr.useWorldSpace = true;
+        lr.positionCount = 2;
+        lr.numCapVertices = 2;
+        if (markerMaterial != null)
+        {
+            t.ArrowMat = new Material(markerMaterial) { color = confirmedColour };
+            lr.sharedMaterial = t.ArrowMat;
+        }
+        lr.enabled = false;
+        t.Arrow = lr;
+
         var labelGo = new GameObject("Label");
         labelGo.transform.SetParent(root.transform, false);
         var label = labelGo.AddComponent<TMPro.TextMeshPro>();
-        label.fontSize = 0.6f;
+        label.fontSize = 0.4f;   // resized every frame by distance
+        label.fontStyle = TMPro.FontStyles.Bold;
         label.alignment = TMPro.TextAlignmentOptions.Center;
+        label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
         label.color = Color.white;
         var rt = label.GetComponent<RectTransform>();
-        if (rt != null) rt.sizeDelta = new Vector2(0.4f, 0.12f);
+        if (rt != null) rt.sizeDelta = new Vector2(1.5f, 0.3f);
         t.Label = label;
+    }
+
+    private static void DestroyMarker(Track t)
+    {
+        if (t.Marker != null) Destroy(t.Marker);
+        if (t.MarkerRenderer != null && t.MarkerRenderer.material != null) Destroy(t.MarkerRenderer.material);
+        if (t.ArrowMat != null) Destroy(t.ArrowMat);
     }
 
     /// <summary>One line per cup, for the HUD.</summary>
@@ -426,9 +639,9 @@ public class CupTracker : MonoBehaviour
         sorted.Sort((a, b) => a.Id.CompareTo(b.Id));
 
         foreach (var t in sorted)
-            sb.AppendFormat("  #{0,-2} {1,-9} at {2,5:F2},{3,5:F2}  hits {4,-3} seen {5:F1}s ago  conf {6:F2}\n",
-                t.Id, t.Confirmed ? "TRACKED" : "tentative",
-                t.Position.x, t.Position.z, t.Hits, now - t.LastSeen, t.Score);
+            sb.AppendFormat("  #{0,-2} {1,-9} {2,-11} at {3,5:F2},{4,5:F2}  hits {5,-3} seen {6:F1}s ago\n",
+                t.Id, t.Confirmed ? "TRACKED" : "tentative", PoseName(t.Pose),
+                t.Position.x, t.Position.z, t.Hits, now - t.LastSeen);
 
         return sb.ToString();
     }

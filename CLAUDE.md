@@ -17,7 +17,7 @@ for a University Relations program.
 | `unity/BotXRGame/Assets/Scripts/` | Runtime C# |
 | `unity/BotXRGame/Assets/Editor/` | Editor tools — scene wiring is done by these, not by hand |
 | `ros2_ws/` | Vendored `ros_tcp_endpoint` (patched, see `PATCHES.md`) |
-| `tools/` | `check-scripts.py`, `ros_tcp_probe.py`, `export_cup_model.py`, adb helpers |
+| `tools/` | `check-scripts.py`, `ros_tcp_probe.py`, `export_cup_model.py`, `cup_pose_check.py` (desktop mirror of the cup colour/pose pass), `pull-cup-frames.sh`, adb helpers |
 | `docs/` | Architecture, ROS interface, guides (`guides/cup-detect.md`) |
 | `Qualcomm_IQ9_Jetrover_Integration_Guide.md` | Robot power-on, SSH, ROS launch order (from the ROS dev) |
 
@@ -31,16 +31,20 @@ for a University Relations program.
 
 ## App flow and modes
 
-Mode menu → ROS IP/port panel → HUD. `GameMode.Source` (static, set once):
+Experience menu → ROS IP/port panel → HUD. Everything on the menu is an **experience** (the game modes and the tests). The menu is a scroll list built from `ExperienceCatalog` by Wire Session Flow; to add one: a `ShipSource` value, a catalog line, a mode script that polls `GameMode.Chosen`, `GameMode.NeedsNoRobot` if it skips the IP panel, then re-run the setup. `GameMode.Source` (static, set once):
 
 | Mode | What it is |
 |---|---|
 | `VirtualBot` | Joystick flies a virtual ship (`GhostBot`). No robot needed. |
 | `AprilTag` | Tag id 0 on the robot gives its pose; stick + tornado pull drive the real robot. Phases NoTag → Approach → Armed → Running (`BotCommandMixer`). |
 | `LinkTest` | Bare ROS link: stick straight to `/cmd_vel`, everything else disabled. First thing to try when the robot won't move. |
-| `CupDetect` | Headset camera → YOLO → cups placed on the floor and tracked. No robot, ROS or tags. Skips the IP panel. |
+| `CupDetect` | Headset camera → YOLO + red-blob colour pass → cups placed on the floor and tracked, with a pose arrow (upright / upside down / tipped). No robot, ROS or tags. Skips the IP panel. |
+| `DistanceTest` | Aim the right controller, trigger drops a pin: distance from the headset via Android XR depth and plane ray casts (`ARRaycastManager`, `TrackableType.Depth` needs `SCENE_UNDERSTANDING_FINE`, requested on entry). Skips the IP panel. |
+| `NpuTest` / `ControllerTest` | Self-installing test experiences (no scene object): SNPE probe; Bluetooth gamepad live readout. Skip the IP panel. |
 
-**Controls:** the right stick translates (forward and strafe) and the left stick spins (X only). A = arm SWEEP, B = arm KICK. In AprilTag ARMED, B also starts the run. Trigger = place / select. Grip = in-headset tuner.
+**Controls (no XR controllers - the Oculus Touch profile is off for Android):** hands for the menu and pointing, the Bluetooth pad for everything else. Menu: point with either hand, pinch to click, pinch-drag to scroll (`InputSystem_Actions` UI map -> `<HandInteraction>/pointerPosition|pointerRotation|pointerActivated`). `Bot/Place` = right-hand pinch (place arena, START button, Cup Detect floor, Distance Test pin), aimed by the Ray Interactor, which follows the right hand's aim pose via the XRI default actions. `Bot/Move|Turn|Swing|Kick|Menu` = pad left stick, right stick, A, B, View. Bindings live in the `.inputactions` files, so editor tools that wire references need no change.
+
+**Bluetooth gamepad (`DriveInput`):** when a pad is connected (8BitDo Ultimate 2C, mode switch on Bluetooth, paired in headset Settings) it drives and works the arm in every mode. Standard twin-stick layout, by button position: left stick = forward/strafe, right stick X = turn, A = SWEEP, B = KICK, Start or B = start the run when ARMED. Pad lost = zero input, so the robot stops. Read from `Gamepad.all` directly, not serialized actions, so no scene wiring. Same code on XREAL Aura (Android XR; a paired pad is plain Android input). The Controller Test experience shows raw pad values, all devices and Android BACK presses; `[Pad]` lines in logcat show connects.
 
 ## Robot interface (port 10000, one connection)
 
@@ -58,6 +62,8 @@ Mode menu → ROS IP/port panel → HUD. `GameMode.Source` (static, set once):
 | Wire Session Flow | Builds the mode menu and HUD and wires references. **Fills only EMPTY fields** — safe to re-run. |
 | Bind All Controls | **Overwrites** input bindings on every consumer. Asks first. |
 | Set Up Cup Detect | Creates the `CupDetect` object, HUD text and preview, marker material; wires the model. Fills empty only. |
+| Set Up Distance Test | Creates the `DistanceTest` object, HUD text, marker material; wires ray, raycaster, trigger/A/B. Fills empty only. |
+| (headless) `BatchBuild.SetUp` / `.Build` | With the Editor **closed**: `Unity.exe -batchmode -quit -projectPath unity/BotXRGame -executeMethod BatchBuild.SetUpAndBuild`. Runs the setups, saves, writes the scene report, builds `Builds/BotXRGame.apk`. The build restarts adb, which drops wireless headsets — reconnect via `adb mdns services` before installing. |
 | Set Up AprilTag Tracking / Set All Marker Sizes To 100 mm | Marker database (AprilTag 36H11, 100 mm, id 0 = bot) |
 | Export Scene Report | Writes `docs/reports/scene-report.md` — every serialized value. Use it to inspect the scene instead of guessing. |
 
@@ -72,13 +78,15 @@ Mode menu → ROS IP/port panel → HUD. `GameMode.Source` (static, set once):
 7. **Create asset folders with `AssetDatabase.CreateFolder`**, not `Directory.CreateDirectory`.
 8. **`Assets/Settings/Build Profiles/Android XR.asset`:** Unity repeatedly drops `XRGeneralSettingsPerBuildTarget` and `OpenXR Package Settings` from `preloadedAssets`. Revert that diff — those make XR initialise. (Scripting-define changes from packages are fine.)
 9. **Instrument rather than theorise.** Wrong diagnoses from screenshots cost real time here; the scene report, logcat timestamps and the TCP probe found the truth first try. And verify the instrument — the probe once expected 52-byte Twists and made a working stream look dead.
-10. **Before committing C#:** run `python tools/check-scripts.py` (brace balance, attribute-on-property, shadowed locals). It is not a compiler. After Unity recompiles, a successful build updates `Library/ScriptAssemblies/Assembly-CSharp.dll`.
+10. **Never disable `ARTrackedImageManager` at runtime.** Stopping the image-tracking subsystem aborts the Galaxy XR runtime (`oxr_xrDestroyTrackableTrackerANDROID`, SIGABRT). Disable its consumers instead.
+11. **Before committing C#:** run `python tools/check-scripts.py` (brace balance, attribute-on-property, shadowed locals). It is not a compiler. After Unity recompiles, a successful build updates `Library/ScriptAssemblies/Assembly-CSharp.dll`.
 
 ## Working rules
 
 - **The user runs `git push`.** Never force-push. Commit as `swapnil-0`.
 - Don't delete Unity's `Library/` folder.
 - A Git LFS hook prints a warning on every commit and checkout (`git-lfs` isn't installed). It's noise, not an error.
+- App id on the headset is **`com.swapnil.BotXRGame`** (from the build profile; ProjectSettings still shows the template id). Launch: `adb shell am start -n com.swapnil.BotXRGame/com.unity3d.player.UnityPlayerGameActivity`.
 - Headset screenshots: `tools/pull-headset-captures.sh` (into `captures/`, which is gitignored). Logs: `tools/watch-logs.sh`.
 - Test photos, YOLO weights (`yolo*.pt`), `cups*.jpg` and `*_detected.jpg` at the repo root are gitignored.
 
@@ -90,7 +98,13 @@ Next steps:
 2. `python tools/export_cup_model.py` → `Assets/Models/CupDetect/yolo11n_320.onnx`, then Wire Session Flow + Set Up Cup Detect, save, build.
 3. On the headset: read the HUD lines (camera fps, Camera2 intrinsics present or MISSING, ms/inference, red-check availability) and the camera preview. Calibrate per `docs/guides/cup-detect.md`.
 
-Design facts: WebCamTexture is used because AR Foundation's CPU image is unsupported on Android XR. GPU, not NPU — XR2+ Gen 2 isn't on LiteRT's Qualcomm NPU list, and Sentis has no NPU backend. Ultralytics YOLO is AGPL-3.0.
+Design facts: WebCamTexture is used because AR Foundation's CPU image is unsupported on Android XR. The model currently runs on the GPU (Sentis has no NPU backend; XR2+ Gen 2 isn't on LiteRT's NPU list). Ultralytics YOLO is AGPL-3.0.
+
+**NPU findings (`tools/npu_probe.sh`, 2026-10-07):** SoC `SXR2230P` ("anorak"), Hexagon **V69**. `/vendor/etc/public.libraries.txt` exposes **`libSNPE.so`** and **`libcdsprpc.so`** to apps; vendor SNPE is **AISW 2.25.0** (QNN API 2.18.0) with signed `libSnpeHtpV69Skel.so` / `libQnnHtpV69Skel.so` in `/vendor/lib/rfsa/adsp`. Vendor `libQnn*.so` are NOT app-readable. Device node `/dev/adsprpc-smd` (`vendor_qdsp_device`). User build, SELinux enforcing, bootloader locked, no OEM unlock → no root on the retail unit.
+
+**NPU verdict (2026-10-08, NPU Test experience, in the real app process): third-party apps CANNOT reach the Hexagon NPU on the retail Galaxy XR.** `open_device_node failed for domain 3 (Permission denied)` on `/dev/adsprpc-smd`, and the HAL fallback fails with `DspClient: unable to acquire dspservice instance`. Same for unsigned (our 2.32 skel) and signed (vendor skel) routes, so a 2.25 SDK would not help. Also denied from adb shell and run-as. No NNAPI vendor driver (no NN HAL service). Only system services (e.g. `android.hardware.perceptionhost`) use the cDSP. SNPE CPU runs the quantized model at ~180 ms; SNPE GPU reports unavailable. Way forward needs platform access (Samsung/Google build with dspservice open to apps, or a userdebug/dev unit) — otherwise stay on Sentis GPU + the colour pass. Pipeline (convert, plugin, probe) is in `tools/npu/`, `native/cupnpu/`, `NpuTestMode`; reusable on a device that allows it.
+
+**Display wedge:** after many exit crashes (rule 10's abort also fires on every app EXIT, in XR deinit), the headset stopped showing app content (frames submitted at 72 FPS, nothing visible, even old APKs). A headset restart fixed it. Treat "nothing virtual visible, even old builds" as a headset restart, not a code bug.
 
 **Open items**
 - AprilTag mode: START button invisible — the board prints a `START:` line naming the cause (suspect: stripped shader). B works as a fallback.

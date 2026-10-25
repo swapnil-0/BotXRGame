@@ -64,38 +64,19 @@ public static partial class SessionFlowSetup
         bg.color = new Color(0.05f, 0.07f, 0.10f, 0.88f);
         Stretch(bgGo.GetComponent<RectTransform>());
 
-        // Four buttons on an 800x600 canvas (y runs -300..300). The old 110-unit
-        // spacing put a fourth button at -340, off the bottom edge - so the
-        // whole stack is tightened to 82-unit rows of 72-unit buttons.
-        var title = MakeText(modePanel.transform, "Title", 50,
+        // Title and one help line on top, then a scroll list of experiences
+        // built from ExperienceCatalog. A fixed stack ran out of room at five
+        // buttons on this 800x600 canvas; a list has no row limit.
+        var title = MakeText(modePanel.transform, "Title", 44,
                              TMPro.TextAlignmentOptions.Center,
-                             new Vector2(0f, 215f), new Vector2(700f, 70f));
-        var help = MakeText(modePanel.transform, "Help", 20,
+                             new Vector2(0f, 255f), new Vector2(700f, 60f));
+        var help = MakeText(modePanel.transform, "Help", 18,
                             TMPro.TextAlignmentOptions.Center,
-                            new Vector2(0f, 130f), new Vector2(760f, 100f));
+                            new Vector2(0f, 212f), new Vector2(760f, 30f));
         help.color = new Color(0.70f, 0.78f, 0.88f);
 
-        Button virtualBtn = MakeButton(modePanel.transform, "VirtualBotButton",
-                                       "Virtual Bot",
-                                       new Vector2(0f, 30f),
-                                       new Color(0.16f, 0.42f, 0.28f));
-        Button tagBtn = MakeButton(modePanel.transform, "AprilTagButton",
-                                   "AprilTag (real bot)",
-                                   new Vector2(0f, -52f),
-                                   new Color(0.18f, 0.32f, 0.52f));
-        Button linkBtn = MakeButton(modePanel.transform, "LinkTestButton",
-                                    "Link Test (ROS only)",
-                                    new Vector2(0f, -134f),
-                                    new Color(0.5f, 0.35f, 0.15f));
-        Button cupBtn = MakeButton(modePanel.transform, "CupDetectButton",
-                                   "Cup Detect (camera only)",
-                                   new Vector2(0f, -216f),
-                                   new Color(0.45f, 0.18f, 0.22f));
-
-        foreach (var b in new[] { virtualBtn, tagBtn, linkBtn, cupBtn })
-            b.GetComponent<RectTransform>().sizeDelta = new Vector2(520f, 72f);
-
-        done.Add("ModePanel with four buttons");
+        RemoveLegacyModeButtons(modePanel.transform, done);
+        ScrollRect experienceList = BuildExperienceList(modePanel.transform, done);
 
         // ------------------------------------------- recent-address button
         // Typing an IP on an XR keyboard is slow, and one wrong digit fails
@@ -155,17 +136,18 @@ public static partial class SessionFlowSetup
         // --------------------------------------------------- ModeSelectMenu
         var menuHost = ipConfig.gameObject;
         var menu = GetOrAdd<ModeSelectMenu>(menuHost);
-        Wire(menu, new Dictionary<string, Object>
+        var menuWires = new Dictionary<string, Object>
         {
             { "modePanel",        modePanel },
-            { "virtualBotButton", virtualBtn },
-            { "aprilTagButton",   tagBtn },
-            { "linkTestButton",   linkBtn },
-            { "cupDetectButton",  cupBtn },
+            { "experienceList",   experienceList },
             { "titleText",        title },
             { "helpText",         help },
             { "ipConfig",         ipConfig },
-        });
+        };
+        var scrollRef = FindActionReference("Bot", "Move");
+        if (scrollRef != null) menuWires["scrollAction"] = scrollRef;
+        else problems.Add("Input action Bot/Move not found - the menu scrolls by dragging only");
+        Wire(menu, menuWires);
         done.Add("ModeSelectMenu wired to ROSIPConfig");
 
         // ------------------------------------- the second mover, finally found

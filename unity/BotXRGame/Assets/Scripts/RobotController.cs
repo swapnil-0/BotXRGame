@@ -123,8 +123,7 @@ public class RobotController : MonoBehaviour
         Vector2 input = Vector2.zero;
         float triggerValue = 0f;
 
-        if (moveAction != null && moveAction.action != null)
-            input = moveAction.action.ReadValue<Vector2>();
+        input = DriveInput.Move(moveAction);
         
         if (input.magnitude < 0.15f) input = Vector2.zero;
 

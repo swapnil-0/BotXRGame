@@ -927,7 +927,7 @@
                 {
                     "name": "",
                     "id": "bb9e6b34-44bf-4381-ac63-5aa15d19f677",
-                    "path": "<XRController>/trigger",
+                    "path": "<HandInteraction>/pointerActivated",
                     "interactions": "",
                     "processors": "",
                     "groups": "XR",
@@ -971,7 +971,7 @@
                 {
                     "name": "",
                     "id": "7236c0d9-6ca3-47cf-a6ee-a97f5b59ea77",
-                    "path": "<XRController>/devicePosition",
+                    "path": "<HandInteraction>/pointerPosition",
                     "interactions": "",
                     "processors": "",
                     "groups": "XR",
@@ -982,7 +982,7 @@
                 {
                     "name": "",
                     "id": "23e01e3a-f935-4948-8d8b-9bcac77714fb",
-                    "path": "<XRController>/deviceRotation",
+                    "path": "<HandInteraction>/pointerRotation",
                     "interactions": "",
                     "processors": "",
                     "groups": "XR",

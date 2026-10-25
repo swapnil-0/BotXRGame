@@ -218,9 +218,8 @@ public class GhostBot : MonoBehaviour
     {
         float dt = Time.deltaTime;
 
-        Vector2 stick = Vector2.zero;
-        if (moveAction != null && moveAction.action != null)
-            stick = moveAction.action.ReadValue<Vector2>();
+        // Gamepad left stick when one is connected, else the XR right stick.
+        Vector2 stick = DriveInput.Move(moveAction);
         if (stick.magnitude < deadzone) stick = Vector2.zero;
 
         // Per-axis deadzone as well as the magnitude one above.
@@ -241,7 +240,12 @@ public class GhostBot : MonoBehaviour
         // Left stick: yaw only. Its Y is ignored, exactly as on the real robot.
         Vector2 turn = Vector2.zero;
 
-        if (turnAction == null || turnAction.action == null)
+        if (DriveInput.HasPad)
+        {
+            turn = DriveInput.Turn(turnAction);
+            TurnStatus = string.Format("pad R: {0:F2}", turn.x);
+        }
+        else if (turnAction == null || turnAction.action == null)
             TurnStatus = "L: UNWIRED";
         else if (!turnAction.action.enabled)
             TurnStatus = "L: DISABLED";

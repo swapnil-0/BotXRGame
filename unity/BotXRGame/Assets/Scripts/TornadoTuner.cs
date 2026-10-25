@@ -235,7 +235,7 @@ public class TornadoTuner : MonoBehaviour
         SetOtherHudTextVisible(!open);
 
         if (!open && text != null) text.text = "";
-        if (open) Flash("tuner open - trigger to close");
+        if (open) Flash("tuner open - View to close");
     }
 
     /// <summary>
@@ -374,7 +374,7 @@ public class TornadoTuner : MonoBehaviour
         if (text == null) return;
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("TUNER   stick: pick/change   A save   B reset   trigger close");
+        sb.AppendLine("TUNER   stick: pick/change   A save   B reset   View close");
 
         for (int i = 0; i < parameters.Count; i++)
         {

@@ -40,6 +40,32 @@ public enum ShipSource
     /// than it is.
     /// </summary>
     CupDetect,
+
+    /// <summary>
+    /// Point the right controller, pull the trigger, and read how far that
+    /// point is from the headset - measured by the platform's own depth and
+    /// plane ray casts (Android XR XR_ANDROID_raycast), not by our camera code.
+    ///
+    /// Standalone like Cup Detect: no robot, no ROS, no tags. It is the ground
+    /// truth to check our camera-based cup positions against, and it shows how
+    /// far out the headset's depth reaches in a given room.
+    /// </summary>
+    DistanceTest,
+
+    /// <summary>
+    /// Runs the cup model through Qualcomm SNPE on the CPU, the Hexagon NPU
+    /// and the GPU inside the app process, and shows what worked and how fast.
+    /// The NPU can only be judged from the app's own process - adb shell and
+    /// run-as are refused by SELinux on this headset (tools/npu/).
+    /// </summary>
+    NpuTest,
+
+    /// <summary>
+    /// Shows exactly what the Bluetooth gamepad sends - device names, sticks,
+    /// triggers, buttons - and the drive command that would result. Pair the
+    /// pad and check it here before blaming the robot (DriveInput).
+    /// </summary>
+    ControllerTest,
 }
 
 /// <summary>
@@ -72,6 +98,17 @@ public static class GameMode
     public static bool IsLinkTest => Source == ShipSource.LinkTest;
 
     public static bool IsCupDetect => Source == ShipSource.CupDetect;
+
+    public static bool IsDistanceTest => Source == ShipSource.DistanceTest;
+
+    /// <summary>Experiences that never talk to the robot, so skip the IP/port screen.</summary>
+    public static bool NeedsNoRobot(ShipSource s) =>
+        s == ShipSource.CupDetect || s == ShipSource.DistanceTest || s == ShipSource.NpuTest
+        || s == ShipSource.ControllerTest;
+
+    public static bool IsNpuTest => Source == ShipSource.NpuTest;
+
+    public static bool IsControllerTest => Source == ShipSource.ControllerTest;
 
     /// <summary>True when the arena, tags and tornado should all stand down.</summary>
     public static bool IsBareLink => Source == ShipSource.LinkTest;

@@ -150,9 +150,9 @@ public class BotCommandMixer : MonoBehaviour
 
     private void ReadStartButton()
     {
-        if (startAction == null || startAction.action == null) return;
+        if (!DriveInput.HasPad && (startAction == null || startAction.action == null)) return;
 
-        bool pressed = startAction.action.ReadValue<float>() > pressThreshold;
+        bool pressed = DriveInput.StartRun(startAction) > pressThreshold;
         if (pressed && !startWasPressed && AwaitingStart) PressStart();
         startWasPressed = pressed;
     }
@@ -267,8 +267,7 @@ public class BotCommandMixer : MonoBehaviour
     {
         CurrentPhase = Phase.Running;
 
-        Vector2 stick = (moveAction != null && moveAction.action != null)
-            ? moveAction.action.ReadValue<Vector2>() : Vector2.zero;
+        Vector2 stick = DriveInput.Move(moveAction);
 
         if (stick.magnitude < stickDeadzone) stick = Vector2.zero;
 
@@ -334,9 +333,9 @@ public class BotCommandMixer : MonoBehaviour
     /// </summary>
     private float ManualTurn()
     {
-        if (turnAction == null || turnAction.action == null) { TurnStick = 0f; return 0f; }
+        if (!DriveInput.HasPad && (turnAction == null || turnAction.action == null)) { TurnStick = 0f; return 0f; }
 
-        float x = turnAction.action.ReadValue<Vector2>().x;
+        float x = DriveInput.Turn(turnAction).x;
         if (Mathf.Abs(x) < stickDeadzone) x = 0f;
 
         TurnStick = x;

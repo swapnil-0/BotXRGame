@@ -1,6 +1,6 @@
 # BotXRGame scene report
 
-Generated: 2026-08-28 10:27:58
+Generated: 2026-10-18 14:13:25
 Scene: GetStarted_Scene  (Assets/Scenes/GetStarted_Scene.unity)
 Unity: 6000.4.2f1
 
@@ -14,7 +14,7 @@ Collectibles
     Star_Model   [MeshFilter, MeshRenderer]
   Collectible_Star (3)   [BoxCollider, Pickup]
     Star_Model   [MeshFilter, MeshRenderer]
-XR Origin (VR)   [XROrigin, InputActionManager, ARPlaneManager, ARRaycastManager, ARTrackedImageManager]
+XR Origin (VR)   [XROrigin, InputActionManager, ARPlaneManager, ARRaycastManager, ARTrackedImageManager, TagCupTracker]
   Camera Offset
     Main Camera   [Camera, AudioListener, TrackedPoseDriver, UniversalAdditionalCameraData, ARCameraManager]
     Ray Interactor   [XRRayInteractor, LineRenderer, XRInteractorLineVisual, SortingGroup, TrackedPoseDriver]
@@ -31,21 +31,28 @@ Canvas   [Canvas, CanvasScaler, CmdVelHUD, ROSIPConfig, TrackedDeviceGraphicRayc
     SkipButton   [CanvasRenderer, Image, Button]
       Skip (Simulation Only)   [CanvasRenderer, TextMeshProUGUI]
     IPStatusText   [CanvasRenderer, TextMeshProUGUI]
-  HUDPanel   [CanvasRenderer, Image, HeadLockedHUD]
+    RecentIPButton   [CanvasRenderer, Image, Button]
+      Label   [CanvasRenderer, TextMeshProUGUI]
+  HUDPanel   [CanvasRenderer, Image, HeadLockedHUD, InputDebugHUD, TornadoTuner, LinkTestMode]
     StatusText   [CanvasRenderer, TextMeshProUGUI]
     TopicText   [CanvasRenderer, TextMeshProUGUI]
     LinearXText   [CanvasRenderer, TextMeshProUGUI]
     AngularZText   [CanvasRenderer, TextMeshProUGUI]
     EndpointText   [CanvasRenderer, TextMeshProUGUI]
     RunText   [CanvasRenderer, TextMeshProUGUI]
+    InputDebugText   [CanvasRenderer, TextMeshProUGUI]
+    TunerText   [CanvasRenderer, TextMeshProUGUI]
+    LinkTestText   [CanvasRenderer, TextMeshProUGUI]
+    CupDetectText   [CanvasRenderer, TextMeshProUGUI]
+    CupDetectPreview  [inactive]   [CanvasRenderer, RawImage]
+    DistanceTestText   [CanvasRenderer, TextMeshProUGUI]
   ModePanel
     Background   [CanvasRenderer, Image]
     Title   [CanvasRenderer, TextMeshProUGUI]
     Help   [CanvasRenderer, TextMeshProUGUI]
-    VirtualBotButton   [CanvasRenderer, Image, Button]
-      Label   [CanvasRenderer, TextMeshProUGUI]
-    AprilTagButton   [CanvasRenderer, Image, Button]
-      Label   [CanvasRenderer, TextMeshProUGUI]
+    ExperienceList   [ScrollRect]
+      Viewport   [RectMask2D, CanvasRenderer, Image]
+      Scrollbar   [CanvasRenderer, Image, Scrollbar]
 EventSystem   [EventSystem, InputSystemUIInputModule]
 RosConnection   [ROSConnection]
 XR Interaction Manager   [XRInteractionManager]
@@ -54,7 +61,7 @@ GameManager   [ArenaRun, ArenaPlacer, FloorSetup]
   ArenaOutline  [inactive]   [LineRenderer]
   FinishMarker  [inactive]   [MeshFilter, MeshRenderer]
 ShipRoot   [GhostBot, ShipTagFollower]
-  Fighter03   [MeshFilter, MeshRenderer, RobotController]
+  Fighter03   [MeshFilter, MeshRenderer, RobotController, BotCommandMixer]
     Wing01   [MeshFilter, MeshRenderer]
       Part02   [MeshFilter, MeshRenderer]
     Part03   [MeshFilter, MeshRenderer]
@@ -69,6 +76,11 @@ ScoreCanvas   [Canvas, CanvasScaler, GraphicRaycaster, ScoreBoard]
   Body   [CanvasRenderer, TextMeshProUGUI]
   Debug   [CanvasRenderer, TextMeshProUGUI]
 TagStandIn   [MeshFilter, MeshRenderer, TrackedImageTagSource, ControllerHeldStandIn]
+CupTagMarkers   [CupTagMarkers]
+StartButton   [FloatingStartButton]
+BotTagMarker   [BotTagMarker]
+CupDetect   [PassthroughCamera, CupDetector, CupTracker, CupDetectMode]
+DistanceTest   [DistanceTestMode]
 ```
 
 ## UI plumbing
@@ -94,11 +106,21 @@ Canvas 'Canvas'
 1 package com.google.xr.extensions : installed
 2 marker tracking feature (Android)  : enabled
 3 marker database                    : Assets/SourceFiles/XR/MarkerDatabase.asset
-     entries: 1
+     entries: 11
        dict April Tag_36H11  id 0  edge 0.100 m  all False
+       dict April Tag_36H11  id 1  edge 0.100 m  all False
+       dict April Tag_36H11  id 2  edge 0.100 m  all False
+       dict April Tag_36H11  id 3  edge 0.100 m  all False
+       dict April Tag_36H11  id 4  edge 0.100 m  all False
+       dict April Tag_36H11  id 5  edge 0.100 m  all False
+       dict April Tag_36H11  id 6  edge 0.100 m  all False
+       dict April Tag_36H11  id 7  edge 0.100 m  all False
+       dict April Tag_36H11  id 8  edge 0.100 m  all False
+       dict April Tag_36H11  id 9  edge 0.100 m  all False
+       dict April Tag_36H11  id 10  edge 0.100 m  all False
 4 reference library on database      : MarkerReferenceLibrary
 5 ARTrackedImageManager              : on XR Origin (VR) (enabled)
-6 manager referenceLibrary           : MarkerReferenceLibrary  (1 images)
+6 manager referenceLibrary           : MarkerReferenceLibrary  (11 images)
 7 TrackedImageTagSource              : TagStandIn
      manager   : XR Origin (VR)
      tagOutput : TagStandIn
@@ -113,10 +135,17 @@ Canvas 'Canvas'
 ```
 on: Canvas
    modePanel                    = ModePanel (GameObject)
-   virtualBotButton             = VirtualBotButton (Button)
-   aprilTagButton               = AprilTagButton (Button)
+   experienceList               = ExperienceList (ScrollRect)
+   scrollAction                 = Bot/Move (InputActionReference)
+   stickScrollSpeed             = 1.2000
+   scrollWithStick              = False
+   followHead                   = True
+   followDeadAngle              = 25.0000
+   followTime                   = 0.4000
+   followDrop                   = 0.1000
    titleText                    = Title (TextMeshProUGUI)
    helpText                     = Help (TextMeshProUGUI)
+   allowButtonSelection         = False
    selectVirtualAction          = Bot/Swing (InputActionReference)
    selectAprilTagAction         = Bot/Kick (InputActionReference)
    pressThreshold               = 0.5000
@@ -134,6 +163,10 @@ on: Canvas
    portInputField               = PortInputField (TMP_InputField)
    ipStatusText                 = IPStatusText (TextMeshProUGUI)
    robotController              = Fighter03 (RobotController)
+   recentButton                 = RecentIPButton (Button)
+   recentLabel                  = Label (TextMeshProUGUI)
+   recentCount                  = 5
+   seedAddresses                = 2 items
    waitForModeSelection         = True
 
 ```
@@ -150,6 +183,8 @@ on: Canvas/HUDPanel
    deadAngle                    = 12.0000
    followTime                   = 0.3500
    keepUpright                  = True
+   followGaze                   = False
+   gazeLift                     = 0.3000
 
 ```
 
@@ -157,12 +192,17 @@ on: Canvas/HUDPanel
 ```
 on: Canvas
    topicName                    = "/arm_command"
+   armPort                      = 10001
+   armIP                        = ""
+   fallBackToMainConnection     = True
    publishInVirtualBotMode      = True
    swingAction                  = Bot/Swing (InputActionReference)
    kickAction                   = Bot/Kick (InputActionReference)
    pressThreshold               = 0.5000
-   swingActionName              = "SWING"
-   kickActionName               = "STOW"
+   useMainConnection            = True
+   useRawTcp                    = False
+   swingActionName              = "SWEEP"
+   kickActionName               = "KICK"
    abortActions                 = "STOW"
    cooldownSeconds              = 1.5000
    localArm                     = NULL   <-- unassigned
@@ -178,6 +218,7 @@ on: ShipRoot
    smoothTime                   = 0.1200
    followYaw                    = True
    trackingTimeout              = 0.5000
+   hideShipInAprilTagMode       = True
 
 ```
 
@@ -294,6 +335,8 @@ on: ScoreCanvas
 ```
 on: ShipRoot
    moveAction                   = Bot/Move (InputActionReference)
+   turnAction                   = Bot/Turn (InputActionReference)
+   mecanum                      = True
    linearSpeed                  = 0.6000
    angularSpeed                 = 2.0000
    deadzone                     = 0.1500
@@ -355,13 +398,17 @@ Assets/Samples/XR Interaction Toolkit/3.5.1/XR Device Simulator/XR Device Simula
 Assets/SourceFiles/InputSystem/BotXRGameControls.inputactions
   map: Bot
     Move (Vector2)
-       <- <XRController>{RightHand}/thumbstick
+       <- <Gamepad>/leftStick
     Place (Button)
-       <- <XRController>{RightHand}/trigger
+       <- <HandInteraction>{RightHand}/pointerActivated
     Swing (Button)
-       <- <XRController>{RightHand}/primaryButton
+       <- <Gamepad>/buttonSouth
     Kick (Button)
-       <- <XRController>{RightHand}/secondaryButton
+       <- <Gamepad>/buttonEast
+    Menu (Button)
+       <- <Gamepad>/select
+    Turn (Vector2)
+       <- <Gamepad>/rightStick
 Assets/SourceFiles/InputSystem/InputSystem_Actions.inputactions
 Assets/SourceFiles/InputSystem/StarterAssets.inputactions
 Packages/com.unity.xr.arfoundation/Assets/InputActions/XR Simulation Input Actions.inputactions

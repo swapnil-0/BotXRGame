@@ -45,12 +45,22 @@ public class CupDetectMode : MonoBehaviour
     public InputActionReference gripAction;     // tuner
     [Range(0.1f, 0.9f)] public float pressThreshold = 0.5f;
 
+    [Header("Camera")]
+    [Tooltip("Camera size this mode asks for, overriding PassthroughCamera's " +
+             "serialized 640x480. At 640 a cup 4 m away is ~6 px wide - too " +
+             "small to find, let alone read its pose. The sensor is 3000x3000; " +
+             "the device picks the nearest size it supports and the HUD shows it.")]
+    public int cameraWidth = 1280;
+    public int cameraHeight = 960;
+
     [Tooltip("Where the floor-setting ray comes from. Taken from ArenaPlacer " +
              "when empty.")]
     public Transform rayOrigin;
     public ARRaycastManager raycastManager;
 
     public bool Active { get; private set; }
+
+    private ARPlaneManager planeManager;
 
     private readonly List<RectTransform> boxPool = new List<RectTransform>();
     private bool tunerOpen;
@@ -87,15 +97,25 @@ public class CupDetectMode : MonoBehaviour
         var placer = FindAnyObjectByType<ArenaPlacer>(FindObjectsInactive.Include);
         if (rayOrigin == null && placer != null) rayOrigin = placer.rayOrigin;
 
-        StandDownEverythingElse(placer);
-        HideOtherHudText();
+        planeManager = FindAnyObjectByType<ARPlaneManager>();
+
+        ExperienceStandDown.HudFollowsGaze();
+        ExperienceStandDown.Gameplay(placer);
+        ExperienceStandDown.HideOtherHudText(display, preview != null ? preview.transform : null);
 
         foreach (var r in new[] { moveAction, triggerAction, aAction, bAction, gripAction })
             if (r != null && r.action != null) r.action.Enable();
 
         LoadTuning();
 
-        if (cam != null) { cam.enabled = true; cam.Begin(); }
+        if (cam != null)
+        {
+            // Set at runtime: the scene has 640x480 serialized on the camera.
+            cam.requestedWidth = cameraWidth;
+            cam.requestedHeight = cameraHeight;
+            cam.enabled = true;
+            cam.Begin();
+        }
         if (detector != null) { detector.enabled = true; detector.cam = cam; detector.Begin(); }
         if (tracker != null)
         {
@@ -106,63 +126,6 @@ public class CupDetectMode : MonoBehaviour
         }
 
         if (preview != null) preview.gameObject.SetActive(true);
-    }
-
-    /// <summary>
-    /// Switch off every system that is not part of this test. Same reasoning as
-    /// Link Test: disabling beats a mode flag inside each system, because the
-    /// one system that forgets the flag is the one that interferes.
-    /// </summary>
-    private void StandDownEverythingElse(ArenaPlacer placer)
-    {
-        if (placer != null)
-        {
-            placer.enabled = false;
-            if (placer.ship != null) placer.ship.gameObject.SetActive(false);
-
-            // The placer has already been drawing its search rectangle since
-            // scene load. Disabling the component freezes that rectangle in
-            // the air rather than removing it.
-            if (placer.previewSurface != null) placer.previewSurface.gameObject.SetActive(false);
-            if (placer.previewOutline != null) placer.previewOutline.gameObject.SetActive(false);
-            if (placer.finishMarker != null) placer.finishMarker.gameObject.SetActive(false);
-        }
-
-        Disable(FindAnyObjectByType<ArenaRun>());
-        Disable(FindAnyObjectByType<BotCommandMixer>());
-        Disable(FindAnyObjectByType<ShipTagFollower>());
-        Disable(FindAnyObjectByType<BotTagMarker>());
-        Disable(FindAnyObjectByType<CupTagMarkers>());
-        Disable(FindAnyObjectByType<TagCupTracker>());
-        Disable(FindAnyObjectByType<FloatingStartButton>());
-        Disable(FindAnyObjectByType<TornadoTuner>());   // shares the grip button
-        Disable(FindAnyObjectByType<LinkTestMode>());
-
-        // No AprilTags in this mode, by design. Marker tracking also costs
-        // camera and CPU time the detector would rather have.
-        Disable(FindAnyObjectByType<ARTrackedImageManager>());
-
-        var board = FindAnyObjectByType<ScoreBoard>(FindObjectsInactive.Include);
-        if (board != null) board.gameObject.SetActive(false);
-
-        foreach (var t in FindObjectsByType<Tornado>(FindObjectsInactive.Include))
-            if (t != null) t.gameObject.SetActive(false);
-    }
-
-    private static void Disable(Behaviour c) { if (c != null) c.enabled = false; }
-
-    private void HideOtherHudText()
-    {
-        if (display == null) return;
-        var parent = display.transform.parent != null ? display.transform.parent : display.transform;
-
-        foreach (var t in parent.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true))
-        {
-            if (t == display) continue;
-            if (preview != null && t.transform.IsChildOf(preview.transform)) continue;
-            t.text = "";
-            t.enabled = false;
-        }
     }
 
     // ---------------------------------------------------------------- input
@@ -209,11 +172,11 @@ public class CupDetectMode : MonoBehaviour
         if (raycastManager != null &&
             raycastManager.Raycast(ray, hits, UnityEngine.XR.ARSubsystems.TrackableType.PlaneWithinPolygon))
         {
-            tracker.SetFloor(hits[0].pose.position.y);
+            tracker.SetFloor(hits[0].pose.position.y, "AR plane");
         }
         else
         {
-            tracker.SetFloor(rayOrigin.position.y);
+            tracker.SetFloor(rayOrigin.position.y, "controller height");
         }
     }
 
@@ -239,6 +202,8 @@ public class CupDetectMode : MonoBehaviour
                         get = () => detector.requireRed ? 1 : 0, set = v => detector.requireRed = v > 0.5f },
             new Param { name = "min red fraction", step = 0.05f, min = 0.05f, max = 0.9f,
                         get = () => detector.minRedFraction, set = v => detector.minRedFraction = v },
+            new Param { name = "colour detect",    isToggle = true,
+                        get = () => detector.colourDetect ? 1 : 0, set = v => detector.colourDetect = v > 0.5f },
             new Param { name = "flip image",       isToggle = true,
                         get = () => detector.invertFlip ? 1 : 0, set = v => detector.invertFlip = v > 0.5f },
             new Param { name = "layers / frame",   step = 5f, min = 5f, max = 200f,
@@ -328,6 +293,12 @@ public class CupDetectMode : MonoBehaviour
             boxPool[i].anchorMax = new Vector2(Mathf.Clamp01(b.xMax), Mathf.Clamp01(1f - b.yMin));
             boxPool[i].offsetMin = Vector2.zero;
             boxPool[i].offsetMax = Vector2.zero;
+
+            // Green = the model found it, cyan = only the colour pass did.
+            var img = boxPool[i].GetComponent<Image>();
+            if (img != null)
+                img.color = dets[i].fromColour ? new Color(0.2f, 0.85f, 1f, 0.35f)
+                                               : new Color(0.2f, 1f, 0.4f, 0.35f);
         }
     }
 
@@ -348,12 +319,15 @@ public class CupDetectMode : MonoBehaviour
         if (display == null) return;
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("CUP DETECT   trigger = set floor   A = clear   B = preview   grip = tune");
+        sb.AppendLine("CUP DETECT   pinch = set floor   A = clear   B = preview   View = tune");
         sb.AppendLine(cam != null ? cam.Status : "camera: NOT WIRED");
         if (cam != null) sb.AppendLine(cam.Camera2Report);
         sb.AppendLine(detector != null ? detector.Status : "detector: NOT WIRED");
         if (detector != null && !string.IsNullOrEmpty(detector.ModelReport)) sb.AppendLine(detector.ModelReport);
         sb.AppendLine(tracker != null ? tracker.Status : "tracker: NOT WIRED");
+        sb.AppendLine(planeManager != null
+            ? "AR planes: " + planeManager.trackables.count + "  (0 = pinch falls back to hand height)"
+            : "AR planes: no ARPlaneManager");
         if (tracker != null) sb.Append(tracker.BuildReport());
 
         if (tunerOpen && detector != null && tracker != null && cam != null)

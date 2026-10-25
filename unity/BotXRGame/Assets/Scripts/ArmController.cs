@@ -78,9 +78,7 @@ public class ArmController : MonoBehaviour
 
     private void ReadInput()
     {
-        float value = (swingAction != null && swingAction.action != null)
-            ? swingAction.action.ReadValue<float>()
-            : 0f;
+        float value = DriveInput.Sweep(swingAction);
         bool pressed = value > pressThreshold;
 
         // Rising edge only: one pull, one swing. Holding the button does not

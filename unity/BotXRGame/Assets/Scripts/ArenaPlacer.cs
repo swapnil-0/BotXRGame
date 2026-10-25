@@ -236,7 +236,7 @@ public class ArenaPlacer : MonoBehaviour
         if (run == null) return;
         float ft = arenaSizeOptionsFeet[sizeIndex];
         run.ShowMessage(string.Format(
-            "{0:0} x {1:0} ft   ({2}/{3})\nstick left/right to resize, trigger to place",
+            "{0:0} x {1:0} ft   ({2}/{3})\npad stick left/right to resize, pinch to place",
             ft, ft, sizeIndex + 1, arenaSizeOptionsFeet.Length));
     }
 

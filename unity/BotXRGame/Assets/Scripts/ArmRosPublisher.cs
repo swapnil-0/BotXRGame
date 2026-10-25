@@ -334,8 +334,11 @@ public class ArmRosPublisher : MonoBehaviour
         if (useRawTcp && tcp != null && registered)
             Status = string.Format("{0}  sent {1}", tcp.Status, tcp.SentCount);
 
-        bool swing = Pressed(swingAction, pressThreshold);
-        bool kick = Pressed(kickAction, pressThreshold);
+        // Gamepad A/B when one is connected, else the XR controller's A/B.
+        bool swing = DriveInput.HasPad ? DriveInput.Sweep(swingAction) > pressThreshold
+                                       : Pressed(swingAction, pressThreshold);
+        bool kick = DriveInput.HasPad ? DriveInput.Kick(kickAction) > pressThreshold
+                                      : Pressed(kickAction, pressThreshold);
 
         // A and B double as the mode-select buttons, so the press that picks a
         // mode would otherwise also publish a SWING - firing a real arm command

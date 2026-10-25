@@ -64,7 +64,7 @@
                 {
                     "name": "",
                     "id": "06c1c122-a0cf-4c72-9abf-7fce4448f7d6",
-                    "path": "<XRController>{RightHand}/thumbstick",
+                    "path": "<Gamepad>/leftStick",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -75,7 +75,7 @@
                 {
                     "name": "",
                     "id": "765b8932-f1a6-468c-aace-1ca13bfeed4f",
-                    "path": "<XRController>{RightHand}/trigger",
+                    "path": "<HandInteraction>{RightHand}/pointerActivated",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -86,7 +86,7 @@
                 {
                     "name": "",
                     "id": "749adedc-0526-47b8-aff7-96c58288955c",
-                    "path": "<XRController>{RightHand}/primaryButton",
+                    "path": "<Gamepad>/buttonSouth",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -97,7 +97,7 @@
                 {
                     "name": "",
                     "id": "9d4c73cf-22b5-49ba-99b0-906cd2b9471b",
-                    "path": "<XRController>{RightHand}/secondaryButton",
+                    "path": "<Gamepad>/buttonEast",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -108,7 +108,7 @@
                 {
                     "name": "",
                     "id": "e46f7e66-52de-4d0c-b2a9-b89c6a86dedf",
-                    "path": "<XRController>{RightHand}/grip",
+                    "path": "<Gamepad>/select",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -119,7 +119,7 @@
                 {
                     "name": "",
                     "id": "b53e8a71-6c24-4d9f-8a13-9f0c62d4e885",
-                    "path": "<XRController>{LeftHand}/thumbstick",
+                    "path": "<Gamepad>/rightStick",
                     "interactions": "",
                     "processors": "",
                     "groups": "",

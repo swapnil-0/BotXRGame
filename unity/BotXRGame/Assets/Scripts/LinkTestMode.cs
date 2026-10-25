@@ -175,8 +175,7 @@ public class LinkTestMode : MonoBehaviour
     {
         if (robot == null) return;
 
-        Vector2 stick = (moveAction != null && moveAction.action != null)
-            ? moveAction.action.ReadValue<Vector2>() : Vector2.zero;
+        Vector2 stick = DriveInput.Move(moveAction);
 
         if (stick.magnitude < deadzone) stick = Vector2.zero;
         else lastNonZeroTime = Time.time;
@@ -186,8 +185,7 @@ public class LinkTestMode : MonoBehaviour
         // Straight to the controller's own fields, published at its publishRate.
         // No smoothing, no inertia: this is measuring the link, and anything
         // that shapes the value makes a wrong value harder to recognise.
-        Vector2 turn = (turnAction != null && turnAction.action != null)
-            ? turnAction.action.ReadValue<Vector2>() : Vector2.zero;
+        Vector2 turn = DriveInput.Turn(turnAction);
         if (Mathf.Abs(turn.x) < deadzone) turn.x = 0f;
 
         if (stick != Vector2.zero || turn.x != 0f || publishZeroWhenIdle)
@@ -230,7 +228,10 @@ public class LinkTestMode : MonoBehaviour
         if (display == null) return;
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("LINK TEST - R stick drives, L stick spins, A SWEEP, B KICK, grip = topic");
+        sb.AppendLine(DriveInput.HasPad
+            ? "LINK TEST - L stick drives, R stick spins, A SWEEP, B KICK, View = topic"
+            : "LINK TEST - connect the gamepad to drive");
+        sb.AppendFormat("gamepad: {0}\n", DriveInput.PadName);
 
         // Connection first: everything below is meaningless if this is wrong,
         // and it is the single most common cause of "nothing happens".
@@ -250,7 +251,7 @@ public class LinkTestMode : MonoBehaviour
             robot.LastPublishedLinear, robot.LastPublishedAngular,
             age < 0f ? "never" : string.Format("{0:F2}s ago", age));
 
-        sb.AppendFormat("R stick {0:F2},{1:F2}   L turn {2:F2}   {3}\n",
+        sb.AppendFormat("move {0:F2},{1:F2}   turn {2:F2}   {3}\n",
             stick.x, stick.y, turn.x, mecanum ? "mecanum" : "differential");
 
         if (arm != null)

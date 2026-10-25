@@ -57,6 +57,17 @@ public class HeadLockedHUD : MonoBehaviour
              "which is most of this game.")]
     public bool keepUpright = true;
 
+    [Header("Gaze follow")]
+    [Tooltip("Follow where the head points, pitch included, instead of staying " +
+             "at eye level. For modes where you look down at the floor and " +
+             "would otherwise look up and down between it and the HUD. Cup " +
+             "Detect turns this on at runtime.")]
+    public bool followGaze = false;
+
+    [Tooltip("With gaze follow: metres above the gaze point, so the panel sits " +
+             "just above whatever you are looking at instead of on top of it.")]
+    public float gazeLift = 0.30f;
+
     private Vector3 velocity;
     private Vector3 lockedForward;
     private bool initialised;
@@ -99,22 +110,26 @@ public class HeadLockedHUD : MonoBehaviour
         // stale pose shows up as the panel juddering against head motion.
         if (!initialised || head == null || panel == null) return;
 
-        Vector3 current = FlatForward(head.forward);
+        Vector3 current = followGaze ? head.forward : FlatForward(head.forward);
 
         // Only re-aim once the head has turned past the dead angle. Inside it
         // the panel holds position, which is the whole point.
         if (Vector3.Angle(lockedForward, current) > deadAngle)
             lockedForward = current;
 
+        // Gaze follow lifts along world up: the panel stays clear above the
+        // point you look at whether you look ahead or down at the floor.
         Vector3 target = head.position
                          + lockedForward * distance
-                         + Vector3.down * verticalOffset;
+                         + (followGaze ? Vector3.up * gazeLift : Vector3.down * verticalOffset);
 
         panel.position = Vector3.SmoothDamp(
             panel.position, target, ref velocity, followTime);
 
+        // Facing the head, tilted with it when following the gaze - a panel
+        // kept vertical while you look at the floor is read edge-on.
         Vector3 look = panel.position - head.position;
-        if (keepUpright) look.y = 0f;
+        if (keepUpright && !followGaze) look.y = 0f;
 
         if (look.sqrMagnitude > 1e-6f)
             panel.rotation = Quaternion.LookRotation(look.normalized, Vector3.up);

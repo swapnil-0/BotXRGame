@@ -1,6 +1,6 @@
 # BotXRGame scene report
 
-Generated: 2026-10-29 06:40:36
+Generated: 2026-10-29 07:22:52
 Scene: GetStarted_Scene  (Assets/Scenes/GetStarted_Scene.unity)
 Unity: 6000.4.2f1
 
@@ -31,7 +31,12 @@ Canvas   [Canvas, CanvasScaler, CmdVelHUD, ROSIPConfig, TrackedDeviceGraphicRayc
     SkipButton   [CanvasRenderer, Image, Button]
       Skip (Simulation Only)   [CanvasRenderer, TextMeshProUGUI]
     IPStatusText   [CanvasRenderer, TextMeshProUGUI]
-    RecentIPButton   [CanvasRenderer, Image, Button]
+    RecentHeader   [CanvasRenderer, TextMeshProUGUI]
+    RecentIP_0   [CanvasRenderer, Image, Button]
+      Label   [CanvasRenderer, TextMeshProUGUI]
+    RecentIP_1   [CanvasRenderer, Image, Button]
+      Label   [CanvasRenderer, TextMeshProUGUI]
+    RecentIP_2   [CanvasRenderer, Image, Button]
       Label   [CanvasRenderer, TextMeshProUGUI]
   HUDPanel   [CanvasRenderer, Image, HeadLockedHUD, InputDebugHUD, TornadoTuner, LinkTestMode]
     StatusText   [CanvasRenderer, TextMeshProUGUI]
@@ -163,10 +168,11 @@ on: Canvas
    portInputField               = PortInputField (TMP_InputField)
    ipStatusText                 = IPStatusText (TextMeshProUGUI)
    robotController              = Fighter03 (RobotController)
-   recentButton                 = RecentIPButton (Button)
-   recentLabel                  = Label (TextMeshProUGUI)
+   recentButtons                = 3 items
+   recentButton                 = NULL   <-- unassigned
+   recentLabel                  = NULL   <-- unassigned
    recentCount                  = 5
-   seedAddresses                = 2 items
+   seedAddresses                = 3 items
    waitForModeSelection         = True
 
 ```

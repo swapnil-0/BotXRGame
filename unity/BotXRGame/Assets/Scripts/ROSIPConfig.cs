@@ -29,14 +29,18 @@ public class ROSIPConfig : MonoBehaviour
     private ROSConnection ros;
 
     [Header("Recent addresses")]
-    [Tooltip("Button that cycles through recently used IPs into the field.\n\n" +
-             "A cycle button rather than a dropdown: typing an IP on an XR " +
-             "keyboard is slow and error-prone, and a wrong digit produces the " +
-             "same silent failure as an unreachable robot - which has already " +
-             "cost a test session.")]
+    [Tooltip("One button per remembered address, most recent first, each " +
+             "labelled with its ip:port. Tapping one fills both fields.\n\n" +
+             "Replaced a single button that cycled through a hidden list: you " +
+             "could not see what it would load, and with two stale entries it " +
+             "looked dead. Typing an IP on an XR keyboard is slow, and one wrong " +
+             "digit fails exactly like an unreachable robot.")]
+    public UnityEngine.UI.Button[] recentButtons;
+
+    [Tooltip("Legacy single cycle button. Unused when recentButtons is set.")]
     public UnityEngine.UI.Button recentButton;
 
-    [Tooltip("Optional label showing which recent entry is selected.")]
+    [Tooltip("Legacy label for the cycle button.")]
     public TextMeshProUGUI recentLabel;
 
     [Tooltip("How many addresses to remember.")]
@@ -58,48 +62,109 @@ public class ROSIPConfig : MonoBehaviour
              "to find out whether the link works.")]
     public string[] seedAddresses =
     {
-        // TEST RubikPi (ur-xr-robotics-rubikpi-1), not the one in the robot.
-        // wlan0 is the interface carrying traffic; its wired interface showed
-        // RX 0 / TX 0, so connecting there would time out like an unreachable
-        // host.
-        "192.168.1.245",   // test Pi, wlan0
-        "192.168.1.204",   // test Pi, wired - idle
-        // Used during the demo against the ROBOT's Pi. Whether they were right
-        // is unknown: the ifconfig above is from a different machine and says
-        // nothing about the robot's address.
-        "192.168.1.200",
-        "192.168.2.216",
+        "192.168.1.204",   // test RubikPi, wired - the link test passed here 2026-10-29
+        "192.168.1.245",   // test RubikPi, wlan0
+        "192.168.1.214",   // robot IQ9 (ur-iq9-3), last seen on home wifi; DHCP
     };
 
+    /// <summary>
+    /// Entries are "ip" or "ip:port" (older saves have no port). Stored
+    /// newline separated in one pref, most recent first.
+    /// </summary>
     private void LoadRecent()
     {
         recent.Clear();
         string raw = PlayerPrefs.GetString(PREF_RECENT, "");
         foreach (var s in raw.Split('\n'))
-            if (!string.IsNullOrEmpty(s.Trim())) recent.Add(s.Trim());
+            AddUnique(recent, s.Trim());
 
-        // Append seeds that are not already remembered, after the real history
-        // so a genuinely used address always comes first.
+        // Seeds after the real history, so an address you actually used comes first.
         if (seedAddresses != null)
             foreach (var s in seedAddresses)
-                if (!string.IsNullOrEmpty(s) && !recent.Contains(s)) recent.Add(s);
+                AddUnique(recent, s);
     }
 
-    private void RememberIP(string ip)
+    /// <summary>Adds unless the same host:port is already listed.</summary>
+    private static void AddUnique(System.Collections.Generic.List<string> list, string entry)
+    {
+        if (string.IsNullOrEmpty(entry)) return;
+        string key = WithPort(entry);
+        foreach (var e in list)
+            if (WithPort(e) == key) return;
+        list.Add(entry);
+    }
+
+    private static string WithPort(string entry)
+    {
+        Split(entry, out string ip, out int port);
+        return ip + ":" + port;
+    }
+
+    private static void Split(string entry, out string ip, out int port)
+    {
+        ip = entry;
+        port = DEFAULT_PORT;
+        int colon = entry.LastIndexOf(':');
+        if (colon > 0 && int.TryParse(entry.Substring(colon + 1), out int p))
+        {
+            ip = entry.Substring(0, colon);
+            port = p;
+        }
+    }
+
+    private void RememberIP(string ip, int port)
     {
         if (string.IsNullOrEmpty(ip)) return;
 
-        recent.Remove(ip);            // moving to the front, not duplicating
-        recent.Insert(0, ip);
+        string entry = ip + ":" + port;
+        recent.RemoveAll(e => WithPort(e) == entry);   // move to the front, no duplicate
+        recent.Insert(0, entry);
 
         while (recent.Count > Mathf.Max(1, recentCount))
             recent.RemoveAt(recent.Count - 1);
 
         PlayerPrefs.SetString(PREF_RECENT, string.Join("\n", recent));
         PlayerPrefs.Save();
+        RefreshRecentButtons();
     }
 
-    /// <summary>Wire to the recent button. Steps through remembered addresses.</summary>
+    /// <summary>Label each recent button with its address; hide the spares.</summary>
+    private void RefreshRecentButtons()
+    {
+        if (recentButtons == null) return;
+        for (int i = 0; i < recentButtons.Length; i++)
+        {
+            var b = recentButtons[i];
+            if (b == null) continue;
+            bool has = i < recent.Count;
+            b.gameObject.SetActive(has);
+            if (!has) continue;
+
+            Split(recent[i], out string ip, out int port);
+            var label = b.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label != null)
+                label.text = port == DEFAULT_PORT ? ip : ip + ":" + port;
+        }
+    }
+
+    /// <summary>Fill the IP and port fields from recent entry i.</summary>
+    public void UseRecent(int i)
+    {
+        if (i < 0 || i >= recent.Count) return;
+        Split(recent[i], out string ip, out int port);
+
+        if (ipInputField != null) ipInputField.text = ip;
+        if (portInputField != null) portInputField.text = port.ToString();
+
+        if (ipStatusText != null)
+        {
+            ipStatusText.text = "Loaded " + ip + ":" + port + " - press Connect";
+            ipStatusText.color = Color.white;
+        }
+        Debug.LogFormat("[IP] recent {0} -> {1}:{2}", i, ip, port);
+    }
+
+    /// <summary>Legacy cycle button: steps through remembered addresses.</summary>
     public void CycleRecent()
     {
         if (recent.Count == 0)
@@ -109,11 +174,7 @@ public class ROSIPConfig : MonoBehaviour
         }
 
         recentIndex = (recentIndex + 1) % recent.Count;
-        if (ipInputField != null) ipInputField.text = recent[recentIndex];
-
-        // Show the ADDRESS, not just an index. "recent 2/5" tells you the
-        // button worked but not what it did, and the whole point is to avoid
-        // reading a long number off a separate field.
+        UseRecent(recentIndex);
         if (recentLabel != null)
             recentLabel.text = string.Format("{0}   ({1}/{2})",
                 recent[recentIndex], recentIndex + 1, recent.Count);
@@ -204,13 +265,38 @@ public class ROSIPConfig : MonoBehaviour
 
         LoadRecent();
 
-        if (recentButton != null)
-            recentButton.onClick.AddListener(CycleRecent);
+        if (recentButtons != null && recentButtons.Length > 0)
+        {
+            for (int i = 0; i < recentButtons.Length; i++)
+            {
+                if (recentButtons[i] == null) continue;
+                int index = i;   // a copy for the closure, not the loop variable
 
-        if (recentLabel != null)
-            recentLabel.text = recent.Count > 0
-                ? string.Format("{0} recent - tap to cycle", recent.Count)
-                : "no recent addresses";
+                // On pointer DOWN, not click. A click needs press and release
+                // on the same object, and closing a pinch drags the hand's aim
+                // ray down a few cm - off these small buttons and onto the
+                // panel (logged: press on RecentIP_0, release on IPInputPanel).
+                // Safe on press: it only fills the fields; Connect is separate.
+                var trigger = recentButtons[i].gameObject.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+                if (trigger == null)
+                    trigger = recentButtons[i].gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+                var down = new UnityEngine.EventSystems.EventTrigger.Entry
+                {
+                    eventID = UnityEngine.EventSystems.EventTriggerType.PointerDown
+                };
+                down.callback.AddListener(_ => UseRecent(index));
+                trigger.triggers.Add(down);
+            }
+            RefreshRecentButtons();
+        }
+        else if (recentButton != null)
+        {
+            recentButton.onClick.AddListener(CycleRecent);
+            if (recentLabel != null)
+                recentLabel.text = recent.Count > 0
+                    ? string.Format("{0} recent - tap to cycle", recent.Count)
+                    : "no recent addresses";
+        }
 
         // Restore last used IP
         ipInputField.text = PlayerPrefs.GetString(PREF_IP, DEFAULT_IP);
@@ -293,7 +379,7 @@ public class ROSIPConfig : MonoBehaviour
         // Remembered on ATTEMPT, not on success. A typo would otherwise never
         // be saved, but neither would a correct address whose robot happened to
         // be off - and that is the address you most want back next time.
-        RememberIP(ip);
+        RememberIP(ip, port);
 
         ipStatusText.text = "Connecting to " + ip + ":" + port + "...";
         ipStatusText.color = Color.yellow;

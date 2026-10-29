@@ -78,60 +78,12 @@ public static partial class SessionFlowSetup
         RemoveLegacyModeButtons(modePanel.transform, done);
         ScrollRect experienceList = BuildExperienceList(modePanel.transform, done);
 
-        // ------------------------------------------- recent-address button
-        // Typing an IP on an XR keyboard is slow, and one wrong digit fails
-        // identically to an unreachable robot.
-        var recentGo = FindOrCreateUiChild(ipPanel.transform, "RecentIPButton");
-        var recentImg = GetOrAdd<Image>(recentGo);
-        recentImg.color = new Color(0.22f, 0.3f, 0.42f);
-        var recentBtn = GetOrAdd<Button>(recentGo);
-        recentBtn.targetGraphic = recentImg;
-
-        var recentRt = recentGo.GetComponent<RectTransform>();
-
-        // Positioned RELATIVE to the IP field rather than at a fixed offset.
-        // The hardcoded (0,-190) landed on top of another control, and a
-        // transparent-ish button that overlaps something else steals its
-        // raycast - so the covered control stops responding too, which reads
-        // as two unrelated bugs.
-        var fieldRt = GetFieldRect(ipConfig, "ipInputField");
-        if (fieldRt != null)
-        {
-            recentRt.anchorMin = fieldRt.anchorMin;
-            recentRt.anchorMax = fieldRt.anchorMax;
-            recentRt.pivot     = fieldRt.pivot;
-            // ABOVE the field, not below. Below is where Connect lives, and the
-            // first attempt at "relative to the field" simply swapped which
-            // control was covered - the space between the title and the field
-            // is the only genuinely free row on this panel.
-            recentRt.anchoredPosition =
-                fieldRt.anchoredPosition + new Vector2(0f, fieldRt.sizeDelta.y + 24f);
-            recentRt.sizeDelta = new Vector2(fieldRt.sizeDelta.x, 52f);
-        }
-        else
-        {
-            recentRt.anchorMin = recentRt.anchorMax = new Vector2(0.5f, 0.5f);
-            recentRt.pivot = new Vector2(0.5f, 0.5f);
-            recentRt.anchoredPosition = new Vector2(0f, -190f);
-            recentRt.sizeDelta = new Vector2(360f, 60f);
-        }
-
-        var recentTxt = MakeText(recentGo.transform, "Label", 26,
-                                 TMPro.TextAlignmentOptions.Center,
-                                 Vector2.zero, new Vector2(340f, 50f));
-        recentTxt.text = "Recent IPs";
-        Stretch(recentTxt.GetComponent<RectTransform>());
-
-        // The button's OWN label is recentLabel, so pressing it shows the
-        // address it just loaded. Previously the label was static and the only
-        // change was in the input field - press it while looking anywhere else
-        // and the button appeared dead.
-        Wire(ipConfig, new Dictionary<string, Object>
-        {
-            { "recentButton", recentBtn },
-            { "recentLabel",  recentTxt },
-        });
-        done.Add("Recent IP button on the connect screen");
+        // ------------------------------------------- recent-address row
+        // One button per remembered address, labelled with what it loads
+        // (SessionFlowSetup.RecentAddresses.cs). Typing an IP on an XR
+        // keyboard is slow, and one wrong digit fails like an unreachable robot.
+        BuildRecentAddressRow();
+        done.Add("Recent address row on the connect screen");
 
         // --------------------------------------------------- ModeSelectMenu
         var menuHost = ipConfig.gameObject;

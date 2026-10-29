@@ -48,7 +48,7 @@ Experience menu → ROS IP/port panel → HUD. Everything on the menu is an **ex
 
 ## Robot interface (port 10000, one connection)
 
-- `/cmd_vel` — `geometry_msgs/Twist`, 30 Hz. `linear.y` = strafe, **left positive**. `angular.z` **CCW positive**.
+- `/cmd_vel` — `geometry_msgs/Twist`, 10 Hz (`RobotController.publishRate`, measured on the RubikPi 2026-10-29). `linear.y` = strafe, **left positive**. `angular.z` **CCW positive**.
 - `/arm_command` — `std_msgs/String`, bare word (`SWEEP`, `KICK`).
 - Wire format: message bodies **omit the 4-byte CDR header** — a Twist is **48 bytes** on the wire, not 52.
 - `tools/ros_tcp_probe.py` replaces the endpoint on a Pi and prints what Unity sends.
@@ -63,7 +63,7 @@ Experience menu → ROS IP/port panel → HUD. Everything on the menu is an **ex
 | Bind All Controls | **Overwrites** input bindings on every consumer. Asks first. |
 | Set Up Cup Detect | Creates the `CupDetect` object, HUD text and preview, marker material; wires the model. Fills empty only. |
 | Set Up Distance Test | Creates the `DistanceTest` object, HUD text, marker material; wires ray, raycaster, trigger/A/B. Fills empty only. |
-| (headless) `BatchBuild.SetUp` / `.Build` | With the Editor **closed**: `Unity.exe -batchmode -quit -projectPath unity/BotXRGame -executeMethod BatchBuild.SetUpAndBuild`. Runs the setups, saves, writes the scene report, builds `Builds/BotXRGame.apk`. The build restarts adb, which drops wireless headsets — reconnect via `adb mdns services` before installing. |
+| (headless) `BatchBuild.SetUp` / `.Build` | With the Editor **closed**: `Unity.exe -batchmode -quit -projectPath unity/BotXRGame -executeMethod BatchBuild.SetUpAndBuild`. Runs the setups, saves, writes the scene report, builds `Builds/BotXRGame.apk`. Unity kills the adb server on quit ("Killing ADB server"), which drops a wireless headset. Run Unity with `ANDROID_ADB_SERVER_PORT=5038` so it uses its own server and the headset's (5037) survives. Never reconnect from the agent side - the user connects the headset. |
 | Set Up AprilTag Tracking / Set All Marker Sizes To 100 mm | Marker database (AprilTag 36H11, 100 mm, id 0 = bot) |
 | Export Scene Report | Writes `docs/reports/scene-report.md` — every serialized value. Use it to inspect the scene instead of guessing. |
 

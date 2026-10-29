@@ -1,6 +1,6 @@
 # BotXRGame scene report
 
-Generated: 2026-10-29 07:22:52
+Generated: 2026-10-29 14:03:20
 Scene: GetStarted_Scene  (Assets/Scenes/GetStarted_Scene.unity)
 Unity: 6000.4.2f1
 
@@ -94,15 +94,15 @@ EventSystem count: 1
   EventSystem
      component: EventSystem
      component: InputSystemUIInputModule
-Canvas 'ScoreCanvas'
-   renderMode : WorldSpace
-   worldCamera: NULL
-   raycaster  : GraphicRaycaster
-   scale      : (0.0010, 0.0010, 0.0010)
 Canvas 'Canvas'
    renderMode : WorldSpace
    worldCamera: Main Camera
    raycaster  : TrackedDeviceGraphicRaycaster
+   scale      : (0.0010, 0.0010, 0.0010)
+Canvas 'ScoreCanvas'
+   renderMode : WorldSpace
+   worldCamera: NULL
+   raycaster  : GraphicRaycaster
    scale      : (0.0010, 0.0010, 0.0010)
 ```
 

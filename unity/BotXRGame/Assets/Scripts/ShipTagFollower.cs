@@ -60,8 +60,16 @@ public class ShipTagFollower : MonoBehaviour
              "say the same thing without the confusion.")]
     public bool hideShipInAprilTagMode = true;
 
-    void Start()
+    // Mode is chosen AFTER scene load, and Start() runs AT scene load - a
+    // plain Start() check always saw the default (VirtualBot), so in
+    // AprilTag mode the ship was never hidden (CLAUDE.md rule 2). Stay off
+    // until the player has chosen, then decide.
+    System.Collections.IEnumerator Start()
     {
+        enabled = false;
+        yield return new WaitUntil(() => GameMode.Chosen);
+        enabled = true;
+
         if (GameMode.IsAprilTag && hideShipInAprilTagMode)
         {
             if (ship == null) ship = CollectibleCup.Ship;
@@ -78,7 +86,7 @@ public class ShipTagFollower : MonoBehaviour
 
             Status = "AprilTag mode - ship hidden";
             enabled = false;
-            return;
+            yield break;
         }
 
         if (!GameMode.IsAprilTag)
@@ -86,7 +94,7 @@ public class ShipTagFollower : MonoBehaviour
             // Virtual Bot: GhostBot keeps full control of its own transform.
             Status = "inactive (Virtual Bot mode)";
             enabled = false;
-            return;
+            yield break;
         }
 
         if (ship == null) ship = CollectibleCup.Ship;

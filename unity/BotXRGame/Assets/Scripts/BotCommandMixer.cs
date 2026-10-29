@@ -134,9 +134,16 @@ public class BotCommandMixer : MonoBehaviour
 
     private bool startPressed;
 
-    void Start()
+    // Mode is chosen AFTER scene load, and Start() runs AT scene load - a
+    // plain Start() check always saw the default (VirtualBot) and disabled
+    // this in every mode (CLAUDE.md rule 2). Stay off until the player has
+    // chosen, then decide. A disabled component's coroutine keeps running.
+    System.Collections.IEnumerator Start()
     {
-        if (!GameMode.IsAprilTag) { enabled = false; return; }
+        enabled = false;
+        yield return new WaitUntil(() => GameMode.Chosen);
+        if (!GameMode.IsAprilTag) yield break;
+        enabled = true;
 
         if (tagTracker == null) tagTracker = FindAnyObjectByType<TagCupTracker>();
         if (robot == null) robot = FindAnyObjectByType<RobotController>();

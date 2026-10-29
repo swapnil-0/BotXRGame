@@ -15,8 +15,8 @@ using UnityEngine.InputSystem;
 ///   left stick       forward / strafe
 ///   right stick X    turn
 ///   South (A)        arm SWEEP
-///   East  (B)        arm KICK; also starts the run when ARMED
-///   Start / Menu     starts the run when ARMED
+///   East  (B)        arm KICK
+///   West  (X)        starts the run when ARMED (Start / Menu too)
 ///
 /// Read straight from the Input System device rather than through serialized
 /// InputActionReferences, so nothing in the scene needs rewiring (CLAUDE.md
@@ -99,12 +99,15 @@ public static class DriveInput
         return pad != null ? pad.buttonEast.ReadValue() : Read1(xr);
     }
 
-    /// <summary>0..1. Pad: Start or East (B), as B starts the run on the XR side too.</summary>
+    /// <summary>
+    /// 0..1. Pad: West (X) or Start. Not B: B is KICK, so starting on B also
+    /// fired the arm at the start line.
+    /// </summary>
     public static float StartRun(InputActionReference xr)
     {
         var pad = Pad;
         return pad != null
-            ? Mathf.Max(pad.startButton.ReadValue(), pad.buttonEast.ReadValue())
+            ? Mathf.Max(pad.buttonWest.ReadValue(), pad.startButton.ReadValue())
             : Read1(xr);
     }
 

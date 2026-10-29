@@ -51,9 +51,16 @@ public class CupTagMarkers : MonoBehaviour
 
     private readonly Dictionary<int, Marker> markers = new Dictionary<int, Marker>();
 
-    void Start()
+    // Mode is chosen AFTER scene load, and Start() runs AT scene load - a
+    // plain Start() check always saw the default (VirtualBot) and disabled
+    // this in every mode (CLAUDE.md rule 2). Stay off until the player has
+    // chosen, then decide. A disabled component's coroutine keeps running.
+    System.Collections.IEnumerator Start()
     {
-        if (!GameMode.IsAprilTag) { enabled = false; return; }
+        enabled = false;
+        yield return new WaitUntil(() => GameMode.Chosen);
+        if (!GameMode.IsAprilTag) yield break;
+        enabled = true;
         if (tracker == null) tracker = FindAnyObjectByType<TagCupTracker>();
     }
 

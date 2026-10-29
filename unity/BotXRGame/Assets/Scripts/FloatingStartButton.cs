@@ -45,11 +45,25 @@ public class FloatingStartButton : MonoBehaviour
     private Renderer faceRenderer;
     private Material faceMat;
     private bool wasPressed;
+    private float lastHoverTime = -10f;
+
+    [Tooltip("A pinch counts if the ray was on the button this recently.\n\n" +
+             "Closing a pinch drags the hand's aim ray down a few cm, so at the " +
+             "instant the pinch registers the ray is often already below a small " +
+             "button - START showed but never started (2026-10-29).")]
+    public float hoverGraceSeconds = 0.4f;
     private bool built;
 
-    void Start()
+    // Mode is chosen AFTER scene load, and Start() runs AT scene load - a
+    // plain Start() check always saw the default (VirtualBot) and disabled
+    // this in every mode (CLAUDE.md rule 2). Stay off until the player has
+    // chosen, then decide. A disabled component's coroutine keeps running.
+    System.Collections.IEnumerator Start()
     {
-        if (!GameMode.IsAprilTag) { enabled = false; return; }
+        enabled = false;
+        yield return new WaitUntil(() => GameMode.Chosen);
+        if (!GameMode.IsAprilTag) yield break;
+        enabled = true;
 
         if (mixer == null) mixer = FindAnyObjectByType<BotCommandMixer>();
         if (run == null) run = FindAnyObjectByType<ArenaRun>();
@@ -77,6 +91,9 @@ public class FloatingStartButton : MonoBehaviour
         face.transform.localScale = new Vector3(size.x, size.y, 0.02f);
 
         box = face.GetComponent<BoxCollider>();
+        // Hit area larger than the visible face (local units of the scaled
+        // cube): about 36 x 26 cm, easier to land with a hand ray.
+        if (box != null) box.size = new Vector3(1.4f, 2.2f, 1f);
 
         faceRenderer = face.GetComponent<Renderer>();
         Material mat = buttonMaterial;
@@ -114,10 +131,16 @@ public class FloatingStartButton : MonoBehaviour
         textGo.transform.localPosition = new Vector3(0f, 0f, -0.012f);
 
         label = textGo.AddComponent<TMPro.TextMeshPro>();
-        label.text = "START";
+        label.text = "START  (X)";
         label.fontSize = 1.2f;
         label.alignment = TMPro.TextAlignmentOptions.Center;
         label.color = Color.white;
+        // One line: at this size inside a 26 cm box TMP wrapped it to
+        // "STA / RT" (seen on the headset 2026-10-29).
+        label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+        label.enableAutoSizing = true;
+        label.fontSizeMin = 0.3f;
+        label.fontSizeMax = 1.2f;
 
         var rt = label.GetComponent<RectTransform>();
         if (rt != null) rt.sizeDelta = new Vector2(size.x, size.y);
@@ -156,6 +179,7 @@ public class FloatingStartButton : MonoBehaviour
         PlaceSelf();
 
         bool hovering = IsPointedAt();
+        if (hovering) lastHoverTime = Time.time;
 
         if (faceMat != null)
             faceMat.color = hovering ? hoverColour : idleColour;
@@ -165,7 +189,7 @@ public class FloatingStartButton : MonoBehaviour
 
         // Rising edge, and only while pointed at it: a trigger pull aimed
         // elsewhere should not start the run.
-        if (pressed && !wasPressed && hovering)
+        if (pressed && !wasPressed && Time.time - lastHoverTime <= hoverGraceSeconds)
         {
             mixer.PressStart();
             SetVisible(false);

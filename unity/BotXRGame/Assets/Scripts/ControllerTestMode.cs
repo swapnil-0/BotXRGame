@@ -145,7 +145,7 @@ public class ControllerTestMode : MonoBehaviour
             Vector2 move = DriveInput.Move(null), turn = DriveInput.Turn(null);
             sb.AppendFormat("drive  fwd {0,5:F2}  strafe(L+) {1,5:F2}  yaw(CCW+) {2,5:F2}\n",
                 move.y, -move.x, -turn.x);
-            sb.AppendFormat("arm    SWEEP(A) {0}   KICK(B) {1}   START {2}\n",
+            sb.AppendFormat("arm    SWEEP(A) {0}   KICK(B) {1}   START(X) {2}\n",
                 DriveInput.Sweep(null) > 0.5f ? "<b>ON</b>" : "-",
                 DriveInput.Kick(null) > 0.5f ? "<b>ON</b>" : "-",
                 DriveInput.StartRun(null) > 0.5f ? "<b>ON</b>" : "-");

@@ -44,7 +44,7 @@ Experience menu → ROS IP/port panel → HUD. Everything on the menu is an **ex
 
 **Controls (no XR controllers - the Oculus Touch profile is off for Android):** hands for the menu and pointing, the Bluetooth pad for everything else. Menu: point with the right hand (white line on the menu), pinch to click, pinch-drag to scroll. At runtime XRI swaps the EventSystem's module for `XRUIInputModule`, so clicks go through the Ray Interactor's UI press reader, which must be `XRI Right Interaction/UI Press` (has the pinch binding) - `Use Hand Pinch On Menu` sets it, BatchBuild runs it. It was `Activate` (controller trigger only), which made the ray hover but never click. The `InputSystem_Actions` UI map is not what clicks. `HandInputDiag` logs `[Hand]` lines (devices, aim pose, UI hit, press) every second - remove once hands are settled. `Bot/Place` = right-hand pinch (place arena, START button, Cup Detect floor, Distance Test pin), aimed by the Ray Interactor, which follows the right hand's aim pose via the XRI default actions. `Bot/Move|Turn|Swing|Kick|Menu` = pad left stick, right stick, A, B, View. Bindings live in the `.inputactions` files, so editor tools that wire references need no change.
 
-**Bluetooth gamepad (`DriveInput`):** when a pad is connected (8BitDo Ultimate 2C, mode switch on Bluetooth, paired in headset Settings) it drives and works the arm in every mode. Standard twin-stick layout, by button position: left stick = forward/strafe, right stick X = turn, A = SWEEP, B = KICK, Start or B = start the run when ARMED. Pad lost = zero input, so the robot stops. Read from `Gamepad.all` directly, not serialized actions, so no scene wiring. Same code on XREAL Aura (Android XR; a paired pad is plain Android input). The Controller Test experience shows raw pad values, all devices and Android BACK presses; `[Pad]` lines in logcat show connects.
+**Bluetooth gamepad (`DriveInput`):** when a pad is connected (8BitDo Ultimate 2C, mode switch on Bluetooth, paired in headset Settings) it drives and works the arm in every mode. Standard twin-stick layout, by button position: left stick = forward/strafe, right stick X = turn, A = SWEEP, B = KICK, X (or Start) = start the run when ARMED - not B, which also fires KICK. Pad lost = zero input, so the robot stops. Read from `Gamepad.all` directly, not serialized actions, so no scene wiring. Same code on XREAL Aura (Android XR; a paired pad is plain Android input). The Controller Test experience shows raw pad values, all devices and Android BACK presses; `[Pad]` lines in logcat show connects.
 
 ## Robot interface (port 10000, one connection)
 
@@ -52,7 +52,7 @@ Experience menu → ROS IP/port panel → HUD. Everything on the menu is an **ex
 - `/arm_command` — `std_msgs/String`, bare word (`SWEEP`, `KICK`).
 - Wire format: message bodies **omit the 4-byte CDR header** — a Twist is **48 bytes** on the wire, not 52.
 - `tools/ros_tcp_probe.py` replaces the endpoint on a Pi and prints what Unity sends.
-- Robot: `ssh ubuntu@ur-iq9-3` (credentials in the integration guide). DHCP — last seen at `192.168.1.214` on home wifi, and it will differ in the office. Launch order is in the integration guide.
+- Robot: `ssh ubuntu@ur-iq9-3` (credentials in the integration guide). DHCP. On the test router **URCade-Mobile** (no internet, `192.168.2.x`) it was at **`192.168.2.114`** (2026-10-29); ssh alias `robot` uses the PC's key (`ssh-copy-id` done), so no password is needed. The PC reaches that network over Ethernet while internet stays on Wi-Fi. Launch order is in the integration guide; nodes run in tmux session `botxr` (`tmux attach -t botxr`), with `~/botxr_env.sh` sourcing all four workspaces. They do NOT survive a robot reboot - it rebooted once mid-session, so check `uptime` first when nodes are missing.
 - Check the base without the headset: `ros2 run teleop_twist_keyboard teleop_twist_keyboard` (Shift+J/L = strafe).
 
 ## Editor tools (Tools > BotXRGame)
@@ -70,7 +70,7 @@ Experience menu → ROS IP/port panel → HUD. Everything on the menu is an **ex
 ## Hard-won rules — read before changing things
 
 1. **Unity serialization trap.** Changing a field's default in code does NOT change a value already serialized in the scene. Either set it via an editor script with `Overwrite`, or tell the user to set it in the Inspector.
-2. **`Start()` runs at scene load, before the user picks a mode.** A `Start()` mode check always sees the default `VirtualBot`. Poll `GameMode.Chosen` instead (see `CupDetectMode`). `LinkTestMode` only works because of a lucky start order — fragile.
+2. **`Start()` runs at scene load, before the user picks a mode.** A `Start()` mode check always sees the default `VirtualBot`. Use `IEnumerator Start()`: `enabled = false; yield return new WaitUntil(() => GameMode.Chosen);` then decide (see `FloatingStartButton`), or poll like `CupDetectMode`. This bug kept `BotCommandMixer`, the START button, `BotTagMarker`, `CupTagMarkers` and `ShipTagFollower` switched off in AprilTag mode until 2026-10-29 - AprilTag driving was plain stick through `RobotController`, with no phases, approach or tornado pull.
 3. **`FindAnyObjectByType` skips inactive objects**, and the scene has decoy/stand-in objects. Use `FindObjectsInactive.Include` and prefer serialized references.
 4. **Every `InputActionReference` must be `.Enable()`d.** A disabled action reads exactly 0, which looks identical to a centred stick or an unwired reference.
 5. **`[Header]`/`[Tooltip]` on a property is CS0592.** Fields only.
@@ -107,9 +107,8 @@ Design facts: WebCamTexture is used because AR Foundation's CPU image is unsuppo
 **Display wedge:** after many exit crashes (rule 10's abort also fires on every app EXIT, in XR deinit), the headset stopped showing app content (frames submitted at 72 FPS, nothing visible, even old APKs). A headset restart fixed it. Treat "nothing virtual visible, even old builds" as a headset restart, not a code bug.
 
 **Open items**
-- AprilTag mode: START button invisible — the board prints a `START:` line naming the cause (suspect: stripped shader). B works as a fallback.
+- AprilTag mode: START button never appeared - cause was rule 2 (fixed 2026-10-29, untested on the robot). Now the mixer really runs: after the arena is placed and tag 0 is seen it DRIVES the robot to the start line at `approachSpeed`, offers START (pad X, or pinch it), then stick + tornado pull. Watch the first run closely.
 - Mecanum strafe sign on the real base not explicitly verified (Shift+J/L in teleop).
 - Cups read TOPPLED while lying flat → `TagCupTracker.normalAxis` probably needs `Forward`.
 - Tag offset `(0, 0, 0.115)` unverified — spin the robot in place; the marker should stay put.
 - LIDAR HUD: branch `lidar-initial-work` has a bag and a plan that conflicts with the single-app / port-10000 design. Needs a conversation with the ROS dev.
-- Make `LinkTestMode` poll for its mode the way `CupDetectMode` does.

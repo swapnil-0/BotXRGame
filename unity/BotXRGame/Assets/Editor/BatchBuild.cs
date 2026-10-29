@@ -29,6 +29,7 @@ public static class BatchBuild
         SessionFlowSetup.SetUpCupDetect();
         SessionFlowSetup.SetUpDistanceTest();
         SessionFlowSetup.WireSessionFlow();
+        SessionFlowSetup.UseHandPinchOnMenu();
         if (!EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene()))
             throw new Exception("Scene save failed: " + ScenePath);
         AssetDatabase.SaveAssets();

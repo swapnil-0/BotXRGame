@@ -103,6 +103,16 @@ public static partial class SessionFlowSetup
             seeds.GetArrayElementAtIndex(i).stringValue = RecentSeeds[i];
         so.ApplyModifiedProperties();
 
+        // Virtual Bot never talks to the robot: skip the connect screen. Left
+        // on, the panel floated over the game unless Skip was pressed.
+        var menu = Object.FindAnyObjectByType<ModeSelectMenu>(FindObjectsInactive.Include);
+        if (menu != null && !menu.skipIpConfigForVirtualBot)
+        {
+            Undo.RecordObject(menu, "Skip connect screen for Virtual Bot");
+            menu.skipIpConfigForVirtualBot = true;
+            Debug.Log("[Recent] Virtual Bot now skips the connect screen");
+        }
+
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         Debug.Log("[Recent] address row built: " + RecentSlots + " buttons, seeds " +
                   string.Join(", ", RecentSeeds));

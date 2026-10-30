@@ -115,6 +115,23 @@ public class DistanceTestMode : MonoBehaviour, IExperienceRestart
         Render();
     }
 
+    /// <summary>
+    /// The XRI hand pointer draws red when it is not on UI - a second ray next
+    /// to this mode's own blue aim line, which is the one that matters here.
+    /// Make its "not on UI" colour transparent: it still shows (white) on the
+    /// Back/Restart buttons, so they stay usable.
+    /// </summary>
+    private void HidePointerUnlessOnUi()
+    {
+        if (rayOrigin == null) return;
+        var visual = rayOrigin.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals.XRInteractorLineVisual>();
+        if (visual == null) return;
+        var clear = new Gradient();
+        clear.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                      new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0f, 1f) });
+        visual.invalidColorGradient = clear;
+    }
+
     private void Activate()
     {
         Active = true;
@@ -129,6 +146,7 @@ public class DistanceTestMode : MonoBehaviour, IExperienceRestart
         ExperienceStandDown.Gameplay(placer);
         ExperienceStandDown.HideOtherHudText(display);
         if (display != null) display.enabled = true;
+        HidePointerUnlessOnUi();
 
         foreach (var r in new[] { triggerAction, aAction, bAction })
             if (r != null && r.action != null) r.action.Enable();

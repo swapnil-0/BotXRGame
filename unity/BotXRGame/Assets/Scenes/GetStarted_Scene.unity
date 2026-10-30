@@ -7081,7 +7081,7 @@ MonoBehaviour:
   selectAprilTagAction: {fileID: -9129376883668913906, guid: 16163f3cce7cd0840bcbe4e8bd3b3c38, type: 3}
   pressThreshold: 0.5
   ipConfig: {fileID: 1320862974}
-  skipIpConfigForVirtualBot: 0
+  skipIpConfigForVirtualBot: 1
 --- !u!1 &1329184598
 GameObject:
   m_ObjectHideFlags: 0

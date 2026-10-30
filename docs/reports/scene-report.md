@@ -1,6 +1,6 @@
 # BotXRGame scene report
 
-Generated: 2026-10-30 07:41:36
+Generated: 2026-10-30 07:57:39
 Scene: GetStarted_Scene  (Assets/Scenes/GetStarted_Scene.unity)
 Unity: 6000.4.2f1
 
@@ -155,7 +155,7 @@ on: Canvas
    selectAprilTagAction         = Bot/Kick (InputActionReference)
    pressThreshold               = 0.5000
    ipConfig                     = Canvas (ROSIPConfig)
-   skipIpConfigForVirtualBot    = False
+   skipIpConfigForVirtualBot    = True
 
 ```
 

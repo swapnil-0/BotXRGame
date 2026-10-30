@@ -6,7 +6,9 @@ using UnityEngine.UI;
 
 /// <summary>
 /// "Back" and "Restart" buttons in every experience, pressed with a hand
-/// pinch. Lazily follows the head, below eye level.
+/// pinch. Sits at the connection panel's distance, just above it: in view
+/// when looking ahead or up, out of view when looking down at the floor to
+/// play. Follows head turns (yaw), not head pitch.
 ///
 /// RESTART starts the current experience over in place: it calls every
 /// active IExperienceRestart (the run, the robot's approach, Distance Test
@@ -30,10 +32,11 @@ using UnityEngine.UI;
 public class ExperienceBar : MonoBehaviour
 {
     private const float ConfirmSeconds = 3f;
-    private const float Distance = 0.95f;      // metres in front of the head
-    private const float Drop = 0.42f;          // metres below eye level
-    private const float FollowAngle = 32f;     // degrees of head turn before it follows
-    private const float FollowSpeed = 4f;
+    // Same distance as the menu / connection panel (~1.7 m, centre 0.1 m below
+    // eye, 0.6 m tall), and just above its top edge so it never covers it.
+    private const float Distance = 1.7f;       // metres in front of the head
+    private const float Lift = 0.30f;          // metres above eye level
+    private const float FollowAngle = 30f;     // degrees of head turn before it follows
 
     private Canvas canvas;
     private TMPro.TextMeshProUGUI backLabel, restartLabel, statusLabel;
@@ -64,24 +67,18 @@ public class ExperienceBar : MonoBehaviour
     void LateUpdate()
     {
         if (canvas == null || !canvas.gameObject.activeSelf || Camera.main == null) return;
-
         var head = Camera.main.transform;
-        Vector3 fwd = head.forward;
-        fwd.y = 0f;
-        if (fwd.sqrMagnitude < 1e-4f) return;
-        fwd.Normalize();
 
-        // Follows only once you have turned well away, so it holds still
-        // while you reach for it.
-        if (Vector3.Angle(anchorForward, fwd) > FollowAngle)
-            anchorForward = fwd;
+        // Turn with the head once it has turned well away; ignore pitch, so
+        // looking down at the floor leaves the bar up at eye level.
+        Vector3 fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+        if (fwd.sqrMagnitude > 1e-4f && Vector3.Angle(anchorForward, fwd) > FollowAngle)
+            anchorForward = fwd.normalized;
 
-        Vector3 target = head.position + anchorForward * Distance + Vector3.down * Drop;
         var t = canvas.transform;
-        t.position = Vector3.Lerp(t.position, target, 1f - Mathf.Exp(-FollowSpeed * Time.deltaTime));
-        Vector3 look = t.position - head.position;
-        look.y = 0f;
-        if (look.sqrMagnitude > 1e-4f) t.rotation = Quaternion.LookRotation(look, Vector3.up);
+        Vector3 target = head.position + anchorForward * Distance + Vector3.up * Lift;
+        t.position = Vector3.Lerp(t.position, target, 5f * Time.deltaTime);
+        t.rotation = Quaternion.LookRotation(anchorForward, Vector3.up);
     }
 
     // ------------------------------------------------------------- actions
@@ -210,7 +207,7 @@ public class ExperienceBar : MonoBehaviour
             Vector3 f = Camera.main.transform.forward;
             f.y = 0f;
             if (f.sqrMagnitude > 1e-4f) anchorForward = f.normalized;
-            root.transform.position = Camera.main.transform.position + anchorForward * Distance + Vector3.down * Drop;
+            root.transform.position = Camera.main.transform.position + anchorForward * Distance + Vector3.up * Lift;
         }
     }
 

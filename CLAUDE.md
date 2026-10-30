@@ -107,7 +107,7 @@ Design facts: WebCamTexture is used because AR Foundation's CPU image is unsuppo
 **Display wedge:** after many exit crashes (rule 10's abort also fires on every app EXIT, in XR deinit), the headset stopped showing app content (frames submitted at 72 FPS, nothing visible, even old APKs). A headset restart fixed it. Treat "nothing virtual visible, even old builds" as a headset restart, not a code bug.
 
 **Open items**
-- AprilTag mode: START button never appeared - cause was rule 2 (fixed 2026-10-29, untested on the robot). Now the mixer really runs: after the arena is placed and tag 0 is seen it DRIVES the robot to the start line at `approachSpeed`, offers START (pad X, or pinch it), then stick + tornado pull. Watch the first run closely.
+- AprilTag mode on the real robot: VERIFIED 2026-10-30 - approach to the start line, START on pad X, driving, and the arm (SWEEP and KICK executed by `gesture_arm_teleop`). Back/Restart verified on the headset.
 - Mecanum strafe sign on the real base not explicitly verified (Shift+J/L in teleop).
 - Cups read TOPPLED while lying flat → `TagCupTracker.normalAxis` probably needs `Forward`.
 - Tag offset `(0, 0, 0.115)` unverified — spin the robot in place; the marker should stay put.

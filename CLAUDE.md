@@ -83,7 +83,7 @@ Experience menu → ROS IP/port panel → HUD. Everything on the menu is an **ex
 
 ## Working rules
 
-- **The user runs `git push`.** Never force-push. Commit as `swapnil-0`.
+- **Claude commits and pushes** (`git push origin main`) after each piece of work - the user prefers not to push. Never force-push. Commit as `swapnil-0`. Retry once on a transient GitHub error.
 - Don't delete Unity's `Library/` folder.
 - Git LFS is installed (`/mingw64/bin/git-lfs`) and tracks `DemoAPKs/*.apk` (`.gitattributes`); demo builds live there, ~265 MB each, over GitHub's 100 MB plain-git limit. Pushing them uploads to LFS storage.
 - App id on the headset is **`com.swapnil.BotXRGame`** (from the build profile; ProjectSettings still shows the template id). Launch: `adb shell am start -n com.swapnil.BotXRGame/com.unity3d.player.UnityPlayerGameActivity`.

@@ -22,7 +22,7 @@ using UnityEngine.XR.ARFoundation;
 ///   grip     open the tuner: stick up/down picks, left/right changes,
 ///            A saves, B resets
 /// </summary>
-public class CupDetectMode : MonoBehaviour
+public class CupDetectMode : MonoBehaviour, IExperienceRestart
 {
     [Header("Pipeline")]
     public PassthroughCamera cam;
@@ -344,4 +344,7 @@ public class CupDetectMode : MonoBehaviour
 
         display.text = sb.ToString();
     }
+
+    /// <summary>Experience bar Restart: forget every tracked cup.</summary>
+    public void RestartExperience() { if (tracker != null) tracker.ClearAll(); }
 }

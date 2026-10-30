@@ -1,6 +1,6 @@
 # BotXRGame scene report
 
-Generated: 2026-10-29 14:03:20
+Generated: 2026-10-30 07:41:36
 Scene: GetStarted_Scene  (Assets/Scenes/GetStarted_Scene.unity)
 Unity: 6000.4.2f1
 

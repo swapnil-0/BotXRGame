@@ -14,7 +14,7 @@ using UnityEngine;
 /// at roughly a 1.5x slowdown over a clean crossing, which is very visible on a
 /// clock and rewards waiting for a lull before committing.
 /// </summary>
-public class ArenaRun : MonoBehaviour
+public class ArenaRun : MonoBehaviour, IExperienceRestart
 {
     [Header("References")]
     public GhostBot ship;
@@ -422,4 +422,7 @@ public class ArenaRun : MonoBehaviour
         Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(finishPoint, finishRadius);
     }
+
+    /// <summary>Experience bar Restart: run the same course again (no-op before the arena is placed).</summary>
+    public void RestartExperience() { Restart(); }
 }

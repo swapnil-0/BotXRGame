@@ -15,7 +15,7 @@ using UnityEngine.InputSystem;
 /// mode, the fault is in the game layer; if it does not move here either, the
 /// fault is the link, and that is a completely different search.
 /// </summary>
-public class LinkTestMode : MonoBehaviour
+public class LinkTestMode : MonoBehaviour, IExperienceRestart
 {
     [Header("Wiring")]
     public RobotController robot;
@@ -274,5 +274,18 @@ public class LinkTestMode : MonoBehaviour
         }
 
         display.text = sb.ToString();
+    }
+
+    /// <summary>
+    /// Experience bar Restart: stop the robot and reconnect the ROS link -
+    /// the first thing to try when the link looks stuck.
+    /// </summary>
+    public void RestartExperience()
+    {
+        if (robot != null) robot.SetExternalCommand(0f, 0f, 0f);
+        var ros = Unity.Robotics.ROSTCPConnector.ROSConnection.GetOrCreateInstance();
+        ros.Disconnect();
+        ros.Connect();
+        Debug.Log("[LinkTest] restart - reconnecting");
     }
 }

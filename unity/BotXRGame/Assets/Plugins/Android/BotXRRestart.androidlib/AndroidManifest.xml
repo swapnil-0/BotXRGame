@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Merged into the app manifest by Unity (an .androidlib folder).
+
+  RestartActivity (Assets/Plugins/Android/RestartActivity.java) is the app's
+  "Back to menu": it runs in its own process so it can SIGKILL the app and
+  start it again without the app's shutdown running - a normal exit aborts the
+  Galaxy XR runtime (see the class comment). Translucent and out of recents:
+  it lives for a few milliseconds and should never be seen.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="com.swapnil.botxr.restart">
+    <application>
+        <activity android:name="com.swapnil.botxr.RestartActivity"
+                  android:process=":restart"
+                  android:exported="false"
+                  android:excludeFromRecents="true"
+                  android:noHistory="true"
+                  android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+    </application>
+</manifest>

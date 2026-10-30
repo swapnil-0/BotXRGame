@@ -29,7 +29,7 @@ using UnityEngine.Android;
 ///   trigger  drop a pin at the aimed point (depth if it hit, else plane)
 ///   A        clear all pins          B  undo the last pin
 /// </summary>
-public class DistanceTestMode : MonoBehaviour
+public class DistanceTestMode : MonoBehaviour, IExperienceRestart
 {
     [Header("HUD")]
     public TMPro.TextMeshProUGUI display;
@@ -404,4 +404,7 @@ public class DistanceTestMode : MonoBehaviour
         ClearPins();
         if (reticleMat != null) Destroy(reticleMat);
     }
+
+    /// <summary>Experience bar Restart: clear every pin.</summary>
+    public void RestartExperience() { ClearPins(); }
 }

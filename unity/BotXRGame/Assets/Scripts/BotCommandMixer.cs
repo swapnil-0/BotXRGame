@@ -18,7 +18,7 @@ using UnityEngine.InputSystem;
 /// Tornado maths the virtual ship feels. That is the whole point of the mixed
 /// reality: the pull has to be real for the driver, not a visual effect.
 /// </summary>
-public class BotCommandMixer : MonoBehaviour
+public class BotCommandMixer : MonoBehaviour, IExperienceRestart
 {
     public enum Phase { NoTag, Approach, Armed, Running }
 
@@ -374,5 +374,15 @@ public class BotCommandMixer : MonoBehaviour
     {
         startPressed = false;
         CurrentPhase = Phase.Approach;
+    }
+
+    /// <summary>
+    /// Experience bar Restart: stop, then drive back to the start line and
+    /// wait for START again. The run itself is restarted by ArenaRun.
+    /// </summary>
+    public void RestartExperience()
+    {
+        if (robot != null) robot.SetExternalCommand(0f, 0f);
+        ResetToApproach();
     }
 }

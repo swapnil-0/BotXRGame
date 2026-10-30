@@ -20,7 +20,7 @@ using UnityEngine.InputSystem.Controls;
 /// The installed object also logs gamepad connects/disconnects in every mode
 /// (logcat tag Unity, "[Pad]").
 /// </summary>
-public class ControllerTestMode : MonoBehaviour
+public class ControllerTestMode : MonoBehaviour, IExperienceRestart
 {
     private bool active;
     private TMPro.TextMeshPro text;
@@ -164,4 +164,7 @@ public class ControllerTestMode : MonoBehaviour
 
         return sb.ToString();
     }
+
+    /// <summary>Experience bar Restart: reset the BACK counter.</summary>
+    public void RestartExperience() { backCount = 0; lastBackAt = "never"; }
 }

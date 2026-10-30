@@ -18,7 +18,11 @@ ship and the robot (left stick move/strafe, right stick turn, A sweep, B kick,
 X start); AprilTag mode with approach, START and tornado pull; Link Test;
 Cup Detect; Distance Test; Controller Test; tap-to-fill recent robot addresses.
 
-## Install
+**Installing on XREAL Aura (or from any other PC):** see
+[`XREAL-Aura-Guide.md`](XREAL-Aura-Guide.md) - PC setup, Git LFS, adb,
+device prep, install, logs, controls, what to test, troubleshooting.
+
+## Install (quick)
 
 ```bash
 adb devices

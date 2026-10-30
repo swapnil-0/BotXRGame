@@ -129,3 +129,6 @@ __pycache__/
 /unity/BotXRGame/Assets/Plugins/Android/libs.meta
 /unity/BotXRGame/Assets/StreamingAssets/CupNpu/
 /unity/BotXRGame/Assets/StreamingAssets/CupNpu.meta
+
+# Demo builds are kept in the repo (via Git LFS, see .gitattributes)
+!/DemoAPKs/*.apk

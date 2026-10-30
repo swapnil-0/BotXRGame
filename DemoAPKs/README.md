@@ -5,18 +5,21 @@ Android XR devices. Stored with **Git LFS** (each is ~265 MB; GitHub refuses
 files over 100 MB in plain git) - clone with `git lfs install` done first, or
 run `git lfs pull` afterwards.
 
-| File | Device | Built from |
+| File | What | Built from |
 |---|---|---|
-| `BotXRGame-v2.1.1-demo-2026-10-29-GalaxyXR.apk` | Samsung Galaxy XR | `6f4e05ac` |
-| `BotXRGame-v2.1.1-demo-2026-10-29-XREAL-Aura.apk` | XREAL Project Aura (untested) | `6f4e05ac` |
+| `BotXRGame-v2.1.1-demo-2026-10-30.apk` | **Latest** - use this | `4f153b18` |
+| `BotXRGame-v2.1.1-demo-2026-10-29-GalaxyXR.apk` | Previous build, kept for comparison | `6f4e05ac` |
 
-The two files are the **same build** (identical SHA-256), named per device so
-each can be handed out on its own. App id `com.swapnil.BotXRGame`, version 2.1.1.
+One APK runs on both Samsung Galaxy XR and XREAL Aura (Aura untested). App id
+`com.swapnil.BotXRGame`, version 2.1.1 - both builds carry the same version
+number, so the file date tells them apart.
 
-**In this build:** experience menu by hand pinch; Bluetooth gamepad drives the
+**In the latest build:** experience menu by hand pinch; Bluetooth gamepad drives the
 ship and the robot (left stick move/strafe, right stick turn, A sweep, B kick,
 X start); AprilTag mode with approach, START and tornado pull; Link Test;
-Cup Detect; Distance Test; Controller Test; tap-to-fill recent robot addresses.
+Cup Detect; Distance Test; Controller Test; tap-to-fill recent robot addresses;
+**Back** (to the menu) and **Restart** buttons in every experience; Virtual Bot
+skips the connection screen. The 2026-10-29 build has none of the last three.
 
 **Installing on XREAL Aura (or from any other PC):** see
 [`XREAL-Aura-Guide.md`](XREAL-Aura-Guide.md) - PC setup, Git LFS, adb,
@@ -26,7 +29,7 @@ device prep, install, logs, controls, what to test, troubleshooting.
 
 ```bash
 adb devices
-adb install -r DemoAPKs/BotXRGame-v2.1.1-demo-2026-10-29-GalaxyXR.apk
+adb install -r DemoAPKs/BotXRGame-v2.1.1-demo-2026-10-30.apk
 adb shell am start -n com.swapnil.BotXRGame/com.unity3d.player.UnityPlayerGameActivity
 ```
 

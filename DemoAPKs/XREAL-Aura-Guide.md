@@ -7,9 +7,9 @@ a Linux or macOS shell.
 
 - App id: **`com.swapnil.BotXRGame`**
 - Launch activity: **`com.unity3d.player.UnityPlayerGameActivity`**
-- APK for Aura: **`DemoAPKs/BotXRGame-v2.1.1-demo-2026-10-29-XREAL-Aura.apk`** (~265 MB)
-- The Galaxy XR copy in the same folder is the identical build (same SHA-256);
-  either file works on either device.
+- APK for Aura: **`DemoAPKs/BotXRGame-v2.1.1-demo-2026-10-30.apk`** (~265 MB)
+- The same APK runs on Galaxy XR. `...-2026-10-29-GalaxyXR.apk` in the same
+  folder is the previous build (no Back/Restart buttons), kept for comparison.
 - Status: built and tested on Samsung Galaxy XR. **Not yet run on Aura.**
 
 ---
@@ -82,7 +82,7 @@ every command below.
 Install (or update - `-r` keeps the app's saved settings):
 
 ```bash
-adb install -r DemoAPKs/BotXRGame-v2.1.1-demo-2026-10-29-XREAL-Aura.apk
+adb install -r DemoAPKs/BotXRGame-v2.1.1-demo-2026-10-30.apk
 ```
 
 Launch:
@@ -144,6 +144,11 @@ adb logcat -d > aura-full.log
   pair button ~3 s until the LED blinks fast). Left stick = move / strafe,
   right stick = turn, **A** = arm sweep, **B** = arm kick, **X** = start the
   run, **View** = tuner. The pad never drives the menu.
+
+**Back / Restart.** Inside every experience a small bar floats just above eye
+level: **< Back** returns to the menu (the app relaunches, ~10 s), **Restart**
+starts the experience over. Pinch a button, then pinch again within 3 s to
+confirm.
 
 **Experiences** on the menu:
 
